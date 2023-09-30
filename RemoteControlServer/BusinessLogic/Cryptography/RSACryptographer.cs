@@ -1,11 +1,11 @@
 ﻿using RemoteControlServer.Data.Interfaces;
 using System.Security.Cryptography;
 
-namespace RemoteControlServer.Data.Helpers.Cryptography
+namespace RemoteControlServer.BusinessLogic.Cryptography
 {
     public class RSACryptographer : ICryptographer
     {
-        private const int KEY_SIZE = 2048;       
+        private const int KEY_SIZE = 2048;
 
         public byte[] Decrypt(byte[] encryptedData, byte[] privateKey)
         {
@@ -30,8 +30,8 @@ namespace RemoteControlServer.Data.Helpers.Cryptography
         public byte[] GeneratePublicKey(byte[] privateKey)
         {
             using var rsa = new RSACryptoServiceProvider(KEY_SIZE);
-            rsa.ImportCspBlob(privateKey);           
+            rsa.ImportCspBlob(privateKey);
             return rsa.ExportCspBlob(false);
-        }        
+        }
     }
 }

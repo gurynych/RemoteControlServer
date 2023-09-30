@@ -1,8 +1,7 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RemoteControlServer.BusinessLogic.Cryptography;
+using RemoteControlServer.BusinessLogic.Services;
 using RemoteControlServer.Data;
-using RemoteControlServer.Data.Helpers.Cryptography;
 using RemoteControlServer.Data.Interfaces;
 
 namespace RemoteControlServer
@@ -29,6 +28,7 @@ namespace RemoteControlServer
             builder.Services.AddMvc(mvcOtions => mvcOtions.EnableEndpointRouting = false);
             builder.Services.AddSingleton<ICryptographer, RSACryptographer>();
             builder.Services.AddSingleton<IHashCreater, BCryptCreater>();
+            builder.Services.AddSingleton<ITcpListenerService, TcpListenerService>();
 
 
             //builder.Services.AddDarta();

@@ -1,7 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography;
-using RemoteControlServer.Data.Helpers.Cryptography;
-using RemoteControlServer.Data.Interfaces;
+﻿using RemoteControlServer.Data.Interfaces;
 
 namespace RemoteControlServer.Data.Models
 {

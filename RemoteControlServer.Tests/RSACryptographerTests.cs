@@ -1,12 +1,11 @@
-using RemoteControlServer.Data.Helpers.Cryptography;
-using RemoteControlServer.Data.Interfaces;
+using NetworkMessage.Cryptography;
 using System.Text;
 
 namespace RemoteControlServer.Tests
 {
     public class RSACryptographerTests
     {
-        private ICryptographer CreateCryptographer() => new RSACryptographer();
+        private IAsymmetricCryptographer CreateCryptographer() => new RSACryptographer();
         private IHashCreater CreateHash() => new BCryptCreater();
 
         [Fact]
@@ -14,7 +13,7 @@ namespace RemoteControlServer.Tests
         public void RSACryptographer_EncryptionStringDataInBothDirections_ResultStringEqualOriginal()
         {
             //Arange
-            ICryptographer cryptographer = CreateCryptographer();
+            IAsymmetricCryptographer cryptographer = CreateCryptographer();
             string expected = @"Test_1_Тест!%*/\?@#$!";
             byte[] data = Encoding.UTF8.GetBytes(expected);
             byte[] privateKey = cryptographer.GeneratePrivateKey();

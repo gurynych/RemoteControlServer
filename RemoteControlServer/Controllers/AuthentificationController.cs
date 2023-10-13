@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using RemoteControlServer.Data;
-using RemoteControlServer.Data.Interfaces;
-using RemoteControlServer.Data.Models;
+using NetworkMessage.Cryptography;
+using NetworkMessage.Cryptography.KeyStore;
+using RemoteControlServer.BusinessLogic.Database;
+using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.KeyStore;
 
 namespace RemoteControlServer.Controllers
 {
@@ -13,15 +15,17 @@ namespace RemoteControlServer.Controllers
         private readonly ILogger<AuthentificationController> logger;
         private readonly ApplicationContext context;
         private readonly IHashCreater hashCreater;
-        private readonly ICryptographer cryptographer;
+        private readonly IAsymmetricCryptographer cryptographer;
+        private readonly AsymmetricKeyStoreBase keyStore;
 
         public AuthentificationController(ILogger<AuthentificationController> logger, ApplicationContext context,
-            IHashCreater hashCreater, ICryptographer cryptographer)
+            IHashCreater hashCreater, IAsymmetricCryptographer cryptographer, AsymmetricKeyStoreBase keyStore)
         {
             this.logger = logger;
             this.context = context;
             this.hashCreater = hashCreater;
             this.cryptographer = cryptographer;
+            this.keyStore = keyStore;
         }
 
         [HttpGet]
@@ -30,22 +34,14 @@ namespace RemoteControlServer.Controllers
             return new string[] { "value1", "value2" };
         }
 
-        // GET api/<AuthentificationController>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
-        {
-            return "value";
-        }
-
         // POST api/<AuthentificationController>/Authorize
         [HttpPost("Authorize")]
-        public bool Post([FromForm] string email, [FromForm] string password)
+        public async Task<bool> Post([FromForm] string email, [FromForm] string passwordHash)
         {
-            User user = context.Users.FirstOrDefault(x => x.Email.Equals(email));
+            User user = await context.Users.FirstOrDefaultAsync(x => x.Email.Equals(email));
             if (user != null)
-            {
-                string hash = hashCreater.Hash(password, user.Salt);
-                if (user.PasswordHash.Equals(hash))
+            {                
+                if (user.PasswordHash.Equals(passwordHash))
                 {
                     return true;
                 }
@@ -56,35 +52,40 @@ namespace RemoteControlServer.Controllers
 
         // POST api/<AuthentificationController>/AuthorizeFromDevice
         [HttpPost("AuthorizeFromDevice")]
-        public async Task<byte[]> Post([FromForm] string email, [FromForm] string password, [FromForm] string macAddress)
+        public async Task<byte[]> Post([FromForm] string email, [FromForm] string password, [FromForm] string hwidHash)
         {
-            User user = await context.Users.FirstOrDefaultAsync(x => x.Email.Equals(email));
+            logger.LogInformation($"Try authorize: email: {email}");
+            var a = context.Users.Include(x => x.Devices);
+            User user = await context.Users.Include(x => x.Devices)
+                .FirstOrDefaultAsync(x => x.Email.Equals(email));
+
             if (user != null)
             {
-                string hash = hashCreater.Hash(password, user.Salt);
-                if (user.PasswordHash.Equals(hash))
+                string passwordHash = hashCreater.Hash(password, user.Salt);
+                if (user.PasswordHash.Equals(passwordHash))
                 {
-                    string macAddressHash = hashCreater.Hash(macAddress, user.Salt);
+                    Device device = await context.Devices.Include(x => x.User)
+                        .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidHash));
 
-                    Device device = await context.Devices.FirstOrDefaultAsync(x => x.Hwid.Equals(macAddressHash));
                     if (device == null)
                     {
-                        device = new Device()
-                        {
-                            Hwid = macAddressHash,
-                            User = user,
-                            UserId = user.Id,
-                        };
-
+                        device = new Device(hwidHash, user);
                         await context.Devices.AddAsync(device);
-                        await context.SaveChangesAsync();
                     }
 
-                    return cryptographer.GeneratePublicKey(user.PrivateKey);
+                    if (!user.Devices.Any(x => x.HwidHash.Equals(hwidHash)))
+                    {
+                        user.Devices.Add(device);
+                        await context.SaveChangesAsync();
+                    }
+                    
+                    await context.SaveChangesAsync();
+                    var k = keyStore.GetPublicKey();
+                    return k;
                 }
             }
 
-            return null;
+            return default;
         }
 
         // PUT api/<AuthentificationController>/5

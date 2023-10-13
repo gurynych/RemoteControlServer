@@ -1,8 +1,12 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using RemoteControlServer.BusinessLogic.Cryptography;
-using RemoteControlServer.BusinessLogic.Services;
-using RemoteControlServer.Data;
-using RemoteControlServer.Data.Interfaces;
+using Microsoft.IdentityModel.Tokens;
+using NetworkMessage.Cryptography;
+using NetworkMessage.Cryptography.KeyStore;
+using RemoteControlServer.BusinessLogic.Communicators;
+using RemoteControlServer.BusinessLogic.Database;
+using RemoteControlServer.BusinessLogic.KeyStore;
+using System.Text;
 
 namespace RemoteControlServer
 {
@@ -26,12 +30,25 @@ namespace RemoteControlServer
             );
             
             builder.Services.AddMvc(mvcOtions => mvcOtions.EnableEndpointRouting = false);
-            builder.Services.AddSingleton<ICryptographer, RSACryptographer>();
+            builder.Services.AddSingleton<IAsymmetricCryptographer, RSACryptographer>();
             builder.Services.AddSingleton<IHashCreater, BCryptCreater>();
-            builder.Services.AddSingleton<ITcpListenerService, TcpListenerService>();
+            builder.Services.AddSingleton<TcpListenerService>();
+            builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = AuthOptions.ISSUER,
+                        ValidateAudience = true,
+                        ValidAudience = AuthOptions.AUDIENCE,
+                        ValidateLifetime = true,
+                        IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
+                        ValidateIssuerSigningKey = true
+                    };
+                });
 
-
-            //builder.Services.AddDarta();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.            
@@ -54,8 +71,23 @@ namespace RemoteControlServer
             }
 
             app.UseMvcWithDefaultRoute();
-
+            /*app.UseHttpsRedirection(options =>
+            {
+                options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
+                options.HttpsPort = 11000;
+            });*/
+            //app.MapHub<FileHub>();
+            //app.MapHub<WpfHub>();
             app.Run();
         }
+    }
+
+    public class AuthOptions
+    {
+        public const string ISSUER = "MyAuthServer"; // издатель токена
+        public const string AUDIENCE = "MyAuthClient"; // потребитель токена
+        const string KEY = "mysupersecret_secretkey!123";   // ключ для шифрации
+        public static SymmetricSecurityKey GetSymmetricSecurityKey() =>
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(KEY));
     }
 }

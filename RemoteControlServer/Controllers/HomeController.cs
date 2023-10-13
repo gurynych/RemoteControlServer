@@ -1,4 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using NetworkMessage.Cryptography;
+using RemoteControlServer.BusinessLogic.Communicators;
+using RemoteControlServer.BusinessLogic.Database;
+using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.Models;
 using System.Diagnostics;
 
@@ -6,15 +10,26 @@ namespace RemoteControlServer.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private readonly ILogger<HomeController> logger;
+        private readonly TcpListenerService tcpListener;
+        private readonly ApplicationContext context;
+        private readonly IHashCreater hashCreater;
+        private readonly IAsymmetricCryptographer cryptographer;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(ILogger<HomeController> logger, TcpListenerService tcpListener, ApplicationContext context,
+            IHashCreater hashCreater, IAsymmetricCryptographer cryptographer)
         {
-            _logger = logger;
+            this.logger = logger;
+            this.tcpListener = tcpListener;
+            this.context = context;
+            this.hashCreater = hashCreater;
+            this.cryptographer = cryptographer;
         }
 
         public IActionResult Index()
         {
+            //context.Users.Add(new User("test", "test", "test", hashCreater, cryptographer));
+            //await context.SaveChangesAsync();
             return View();
         }
 

@@ -1,6 +1,4 @@
-﻿using RemoteControlServer.Data.Models;
-
-namespace RemoteControlServer.Data.Interfaces
+﻿namespace RemoteControlServer.BusinessLogic.Repository
 {
     public interface IGenericRepository<T> 
         where T : class

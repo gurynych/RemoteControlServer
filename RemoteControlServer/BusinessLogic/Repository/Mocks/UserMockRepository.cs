@@ -1,15 +1,15 @@
-﻿using RemoteControlServer.Data.Interfaces;
-using RemoteControlServer.Data.Models;
+﻿using NetworkMessage.Cryptography;
+using RemoteControlServer.BusinessLogic.Database.Models;
 
-namespace RemoteControlServer.Data.Repository.Mocks
+namespace RemoteControlServer.BusinessLogic.Repository.Mocks
 {
     public class UserMockRepository : IGenericRepository<User>
     {
         private readonly IHashCreater hash;
-        private readonly ICryptographer cryptographer;
+        private readonly IAsymmetricCryptographer cryptographer;
         private List<User> users;
 
-        public UserMockRepository(IHashCreater hash, ICryptographer cryptographer)
+        public UserMockRepository(IHashCreater hash, IAsymmetricCryptographer cryptographer)
         {
             this.hash = hash;
             this.cryptographer = cryptographer;

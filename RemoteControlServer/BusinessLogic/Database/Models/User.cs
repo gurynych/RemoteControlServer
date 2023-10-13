@@ -1,25 +1,16 @@
-﻿using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography;
-using RemoteControlServer.Data.Helpers.Cryptography;
-using RemoteControlServer.Data.Interfaces;
+﻿using NetworkMessage.Cryptography;
 
-namespace RemoteControlServer.Data.Models
+namespace RemoteControlServer.BusinessLogic.Database.Models
 {
     public class User
     {
-        private string passwordHash;
-
         public int Id { get; set; }
 
         public string Login { get; set; }
 
         public string Email { get; set; }
 
-        public string PasswordHash
-        {
-            get => passwordHash;
-            set => passwordHash = value;
-        }
+        public string PasswordHash { get; set; }        
 
         public string Salt { get; set; }
 
@@ -31,7 +22,7 @@ namespace RemoteControlServer.Data.Models
         {
         }
 
-        public User(string login, string email, string password, IHashCreater hash, ICryptographer cryptographer)
+        public User(string login, string email, string password, IHashCreater hash, IAsymmetricCryptographer cryptographer)
         {
             Login = login;
             Email = email;

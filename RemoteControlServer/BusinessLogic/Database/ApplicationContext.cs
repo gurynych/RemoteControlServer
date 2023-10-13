@@ -1,23 +1,28 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using RemoteControlServer.Data.Models;
+using RemoteControlServer.BusinessLogic.Database.Models;
 
-namespace RemoteControlServer.Data
+namespace RemoteControlServer.BusinessLogic.Database
 {
     public class ApplicationContext : DbContext
     {
-        private readonly string[] args;
-
         public DbSet<User> Users { get; set; }
 
         public DbSet<Device> Devices { get; set; }
 
+        public DbSet<ServerPrivateKey> ServerPrivateKeys { get; set; }
+
         public ApplicationContext()
-        {                
+        {
         }
 
         public ApplicationContext(DbContextOptions<ApplicationContext> options)
             : base(options)
         {
+            /*var t = Users.Include(x => x.Devices).ToList();
+            Devices.Include(x => x.User);
+            var c = Users.FirstOrDefault();
+            var b = Users.Local.FirstOrDefault().Devices;
+            var a = Users.Local.FirstOrDefault().Devices.ToList();*/
         }
     }
 }

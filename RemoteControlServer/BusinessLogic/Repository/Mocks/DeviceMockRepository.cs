@@ -1,17 +1,15 @@
-﻿using RemoteControlServer.Data.Interfaces;
-using RemoteControlServer.Data.Models;
-using System.Net;
-using System.Net.Sockets;
+﻿using NetworkMessage.Cryptography;
+using RemoteControlServer.BusinessLogic.Database.Models;
 
-namespace RemoteControlServer.Data.Repository.Mocks
+namespace RemoteControlServer.BusinessLogic.Repository.Mocks
 {
     public class DeviceMockRepository : IGenericRepository<Device>
     {
         private readonly IHashCreater hash;
-        private readonly ICryptographer cryptographer;
+        private readonly IAsymmetricCryptographer cryptographer;
         private List<Device> devices;
 
-        public DeviceMockRepository(IHashCreater hash, ICryptographer cryptographer)
+        public DeviceMockRepository(IHashCreater hash, IAsymmetricCryptographer cryptographer)
         {
             this.hash = hash;
             this.cryptographer = cryptographer;                       
@@ -19,15 +17,15 @@ namespace RemoteControlServer.Data.Repository.Mocks
             List<User> users = new UserMockRepository(hash, cryptographer).GetAll().ToList();
             devices = new List<Device>()
             {                                  //gurynychHWID
-                new Device() { Id = 1, Hwid = "7113281bb52c59deb42604b83c5713fe00d81bf4ca180ac1189ff42bac14abea", UserId = 1, User = users[0] },
+                new Device() { Id = 1, HwidHash = "7113281bb52c59deb42604b83c5713fe00d81bf4ca180ac1189ff42bac14abea", UserId = 1, User = users[0] },
                                                //hawk0ffHWID
-                new Device() { Id = 2, Hwid = "1fe65d27f3aea8338b04d14c006fc9c382f8f0259233ce97a5d4b2dc4f9ff1ca", UserId = 2, User = users[1] }
+                new Device() { Id = 2, HwidHash = "1fe65d27f3aea8338b04d14c006fc9c382f8f0259233ce97a5d4b2dc4f9ff1ca", UserId = 2, User = users[1] }
             };
         }
 
         public bool AddItem(Device item)
         {
-            if (devices.Any(x => x.Hwid == item.Hwid))
+            if (devices.Any(x => x.HwidHash == item.HwidHash))
             {                
                 return false;
             }

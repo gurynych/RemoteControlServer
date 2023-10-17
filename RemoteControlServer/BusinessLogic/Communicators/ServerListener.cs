@@ -1,30 +1,33 @@
 ﻿using NetworkMessage.Cryptography;
 using NetworkMessage.Cryptography.KeyStore;
-using RemoteControlServer.BusinessLogic.Database;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Net;
 using System.Net.Sockets;
 
 namespace RemoteControlServer.BusinessLogic.Communicators
 {
-    public class TcpListenerService
+    public class ServerListener
     {
         private readonly TcpListener listener;
-        private readonly ILogger<TcpListenerService> logger;
+        private readonly ILogger<ServerListener> logger;
         private readonly IAsymmetricCryptographer cryptographer;
-        private readonly AsymmetricKeyStoreBase keyStore;        
+        private readonly AsymmetricKeyStoreBase keyStore;
         private readonly IServiceProvider serviceProvider;
+        private readonly IDbRepository dbRepository;
         private Thread thread;
         private CancellationTokenSource cancelTokenSrc;
 
         public List<ClientDevice> ClientDevices { get; }
 
-        public TcpListenerService(ILogger<TcpListenerService> logger, IAsymmetricCryptographer cryptographer,
-            AsymmetricKeyStoreBase keyStore, IServiceProvider serviceProvider)
+        public ServerListener(ILogger<ServerListener> logger, IAsymmetricCryptographer cryptographer,
+            AsymmetricKeyStoreBase keyStore, IDbRepository dbRepository)
+        //IServiceProvider serviceProvider)
         {
             this.logger = logger;
             this.cryptographer = cryptographer;
             this.keyStore = keyStore;
-            this.serviceProvider = serviceProvider;
+            //this.serviceProvider = serviceProvider;
+            this.dbRepository = dbRepository;
             listener = new TcpListener(IPAddress.Any, 11000);
             cancelTokenSrc = new CancellationTokenSource();
             ClientDevices = new List<ClientDevice>();
@@ -44,26 +47,29 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                     TcpClient client = listener.AcceptTcpClient();
                     if (client != null)
                     {
-                        logger.LogInformation(client.Client.ToString());
-
-                        using IServiceScope scope = serviceProvider.CreateScope();
-                        ApplicationContext context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                        ClientDevice clientDevice = new ClientDevice(client, cryptographer, keyStore, context);
-                        try
+                        logger.LogInformation("Start connection to {client}", client.Client.RemoteEndPoint);
+                        ClientDevice clientDevice = new ClientDevice(client, cryptographer, keyStore, dbRepository);
+                        CancellationTokenSource tokenSource = new CancellationTokenSource(10000);
+                        _ = Task.Run(() =>
                         {
-                            clientDevice.Handshake();
-                            if (ClientDevices.Any(x => x.Device.HwidHash.Equals(clientDevice.Device.HwidHash)))
+                            logger.LogInformation("Handshake with {client}", client.Client.RemoteEndPoint);
+                            try
                             {
-                                ClientDevices.Remove(clientDevice);
-                            }
+                                clientDevice.Handshake(tokenSource.Token);
+                                if (ClientDevices.Any(x => x.Device.HwidHash.Equals(clientDevice.Device.HwidHash)))
+                                {
+                                    ClientDevices.Remove(clientDevice);
+                                }
 
-                            ClientDevices.Add(clientDevice);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex.ToString());
-                            client.Close();
-                        }
+                                ClientDevices.Add(clientDevice);
+                                logger.LogInformation("Connection successful to {client}", client.Client.RemoteEndPoint);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, null, null);
+                                client.Close();
+                            }
+                        });
                     }
                 }
             }
@@ -93,7 +99,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             }
             catch { throw; }
         }*/
-        
+
         /*private async Task<int> ReceiveResultSizeAsync(NetworkStream stream)
         {
             if (stream != null)
@@ -138,7 +144,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
         }        
 
         */
-        
+
         /*public async Task SendAsync(INetworkObject netObject)
         {
             //
@@ -185,7 +191,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             }
             catch { throw; }
         }*/
-        
+
         /*public async Task SendAsync(INetworkCommand command)
         {
             //

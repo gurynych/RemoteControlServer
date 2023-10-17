@@ -6,6 +6,9 @@ using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.KeyStore;
+using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.Repository;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Text;
 
 namespace RemoteControlServer
@@ -24,15 +27,20 @@ namespace RemoteControlServer
             builder.Services.AddSwaggerGen();
             builder.Services.AddDbContext<ApplicationContext>(DbContextOptions => DbContextOptions.UseNpgsql(connectionString)
                 //Debugging stuff
-                .LogTo(Console.WriteLine, LogLevel.Information)
-                .EnableSensitiveDataLogging()
-                .EnableDetailedErrors()
+                //.LogTo(Console.WriteLine, LogLevel.Information)
+                //.EnableSensitiveDataLogging()
+                //.EnableDetailedErrors()
             );
-            
+
+            builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
+
             builder.Services.AddMvc(mvcOtions => mvcOtions.EnableEndpointRouting = false);
             builder.Services.AddSingleton<IAsymmetricCryptographer, RSACryptographer>();
             builder.Services.AddSingleton<IHashCreater, BCryptCreater>();
-            builder.Services.AddSingleton<TcpListenerService>();
+            builder.Services.AddSingleton<ServerListener>();
+            builder.Services.AddSingleton<IGenericRepository<User>, UserDbRepository>();
+            builder.Services.AddSingleton<IGenericRepository<Device>, DeviceDbRepository>();
+            builder.Services.AddSingleton<IDbRepository, DbRepository>();
             builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>

@@ -6,6 +6,7 @@ using NetworkMessage.Cryptography;
 using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Net.Sockets;
 
 namespace RemoteControlServer.BusinessLogic.Communicators
@@ -13,19 +14,23 @@ namespace RemoteControlServer.BusinessLogic.Communicators
     public class ClientDevice : TcpClientCryptoCommunicator
     {
         private readonly ApplicationContext context;
-        public Device Device { get; set; }
+        private readonly IDbRepository dbRepository;
+
+        public Device Device { get; private set; }
 
         /// <exception cref="NotImplementedException"/>
         /// <exception cref="ArgumentNullException"/>
         public ClientDevice(TcpClient client, IAsymmetricCryptographer cryptographer, 
-            AsymmetricKeyStoreBase keyStore, ApplicationContext context)
+            AsymmetricKeyStoreBase keyStore, IDbRepository dbRepository)
+            //ApplicationContext context)
             : base(client, cryptographer, keyStore)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            this.context = context;
+            //if (context == null) throw new ArgumentNullException(nameof(context));
+            //this.context = context;
+            this.dbRepository = dbRepository;
         }
 
-        public override void Handshake()
+        public override void Handshake(CancellationToken token)
         {
             try
             {
@@ -33,6 +38,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                 PublicKeyResult publicKeyResult;
                 do
                 {
+                    token.ThrowIfCancellationRequested();
                     if (repeatCount == 3)
                     {
                         throw new SocketException();
@@ -50,6 +56,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                 HwidResult hwidResult = Receive() as HwidResult;
                 do
                 {
+                    token.ThrowIfCancellationRequested();
                     if (repeatCount == 3)
                     {
                         throw new SocketException();
@@ -59,9 +66,10 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                     repeatCount++;
                 } while (hwidResult == default);
 
-                Device = context.Devices
-                    .Include(x => x.User)
-                    .FirstOrDefault(x => x.HwidHash.Equals(hwidResult.Hwid));
+                token.ThrowIfCancellationRequested();
+                Device = dbRepository.Devices
+                    .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidResult.Hwid))
+                    .Result;
 
                 if (Device == null) throw new NullReferenceException(nameof(Device));
             }

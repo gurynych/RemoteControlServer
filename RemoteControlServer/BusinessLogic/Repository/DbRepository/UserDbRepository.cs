@@ -39,7 +39,8 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
                     }
 
                     await context.Users.AddAsync(item);
-                    return true;
+                    int entries = await context.SaveChangesAsync();
+                    return entries > 0;
                 }
             }
             catch (Exception ex)

@@ -14,5 +14,9 @@ html {
 }
 
 body {
-  margin-bottom: 60px;
+    background-image: url("/images/account_backgr.JPG");
+    background-size: contain;
+}
+.gradient-element {
+    background:linear-gradient(to bottom, rgba(85, 66, 99, 0.5), rgba(165, 130, 190, 0.35), rgba(222, 207, 255, 0.25));
 }

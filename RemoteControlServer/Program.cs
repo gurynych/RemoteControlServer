@@ -10,6 +10,9 @@ using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
 
 namespace RemoteControlServer
 {
@@ -42,23 +45,16 @@ namespace RemoteControlServer
             builder.Services.AddSingleton<IGenericRepository<Device>, DeviceDbRepository>();
             builder.Services.AddSingleton<IDbRepository, DbRepository>();
             builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidIssuer = AuthOptions.ISSUER,
-                        ValidateAudience = true,
-                        ValidAudience = AuthOptions.AUDIENCE,
-                        ValidateLifetime = true,
-                        IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
-                        ValidateIssuerSigningKey = true
-                    };
-                });
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options => options.LoginPath = "/Account/Authorization");
+            builder.Services.AddSingleton<IDbRepository,DbRepository>();
+            builder.Services.AddSingleton<IHashCreater,BCryptCreater>();
+            builder.Services.AddAuthorization();
 
-            var app = builder.Build();
-
+            var app = builder.Build();  
+            app.UseAuthentication();
+            app.UseAuthorization();
+            
             // Configure the HTTP request pipeline.            
             app.UseStaticFiles();
             app.MapControllers();
@@ -77,8 +73,9 @@ namespace RemoteControlServer
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-
+            
             app.UseMvcWithDefaultRoute();
+
             /*app.UseHttpsRedirection(options =>
             {
                 options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
@@ -86,16 +83,8 @@ namespace RemoteControlServer
             });*/
             //app.MapHub<FileHub>();
             //app.MapHub<WpfHub>();
+
             app.Run();
         }
-    }
-
-    public class AuthOptions
-    {
-        public const string ISSUER = "MyAuthServer"; // издатель токена
-        public const string AUDIENCE = "MyAuthClient"; // потребитель токена
-        const string KEY = "mysupersecret_secretkey!123";   // ключ для шифрации
-        public static SymmetricSecurityKey GetSymmetricSecurityKey() =>
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(KEY));
     }
 }

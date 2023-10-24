@@ -18,6 +18,7 @@ namespace RemoteControlServer.BusinessLogic.Database
         public ApplicationContext(DbContextOptions<ApplicationContext> options)
             : base(options)
         {
+            Database.EnsureCreated();
             /*var t = Users.Include(x => x.Devices).ToList();
             Devices.Include(x => x.User);
             var c = Users.FirstOrDefault();

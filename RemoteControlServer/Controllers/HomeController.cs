@@ -1,13 +1,16 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using NetworkMessage.Cryptography;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.Models;
 using System.Diagnostics;
+using System.Security.Claims;
 
 namespace RemoteControlServer.Controllers
 {
+    [Authorize]
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> logger;
@@ -26,13 +29,16 @@ namespace RemoteControlServer.Controllers
             this.cryptographer = cryptographer;
         }
 
-        public IActionResult Index()
+        
+        public string Index()
         {
+
             //context.Users.Add(new User("test", "test", "test", hashCreater, cryptographer));
             //await context.SaveChangesAsync();
-            return View();
+            return HttpContext.User.FindFirst(ClaimTypes.Name )+ " " + HttpContext.User.FindFirst(ClaimTypes.Email);
         }
 
+        
         public IActionResult Privacy()
         {
             return View();

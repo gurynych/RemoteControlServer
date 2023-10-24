@@ -10,15 +10,15 @@ namespace RemoteControlServer.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthentificationController : ControllerBase
+    public class AuthentificationAPIController : ControllerBase
     {
-        private readonly ILogger<AuthentificationController> logger;
+        private readonly ILogger<AuthentificationAPIController> logger;
         private readonly ApplicationContext context;
         private readonly IHashCreater hashCreater;
         private readonly IAsymmetricCryptographer cryptographer;
         private readonly AsymmetricKeyStoreBase keyStore;
 
-        public AuthentificationController(ILogger<AuthentificationController> logger, ApplicationContext context,
+        public AuthentificationAPIController(ILogger<AuthentificationAPIController> logger, ApplicationContext context,
             IHashCreater hashCreater, IAsymmetricCryptographer cryptographer, AsymmetricKeyStoreBase keyStore)
         {
             this.logger = logger;
@@ -54,7 +54,7 @@ namespace RemoteControlServer.Controllers
         [HttpPost("AuthorizeFromDevice")]
         public async Task<byte[]> Post([FromForm] string email, [FromForm] string password, [FromForm] string hwidHash)
         {
-            logger.LogInformation("Try authorize: {email}", email);
+            logger.LogInformation($"Try authorize: email: {email}");
             var a = context.Users.Include(x => x.Devices);
             User user = await context.Users.Include(x => x.Devices)
                 .FirstOrDefaultAsync(x => x.Email.Equals(email));

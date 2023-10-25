@@ -22,13 +22,11 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
         {
         }
 
-        public User(string login, string email, string password, IHashCreater hash, IAsymmetricCryptographer cryptographer)
+        public User(string login, string email, string password)
         {
             Login = login;
             Email = email;
-            Salt = hash.GenerateSalt();
-            PasswordHash = hash.Hash(password, Salt);
-            PrivateKey = cryptographer.GeneratePrivateKey();
+            PasswordHash = password;
         }
     }
 }

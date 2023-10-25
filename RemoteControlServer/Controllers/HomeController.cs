@@ -11,12 +11,12 @@ namespace RemoteControlServer.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> logger;
-        private readonly TcpListenerService tcpListener;
+        private readonly ServerListener tcpListener;
         private readonly ApplicationContext context;
         private readonly IHashCreater hashCreater;
         private readonly IAsymmetricCryptographer cryptographer;
 
-        public HomeController(ILogger<HomeController> logger, TcpListenerService tcpListener, ApplicationContext context,
+        public HomeController(ILogger<HomeController> logger, ServerListener tcpListener, ApplicationContext context,
             IHashCreater hashCreater, IAsymmetricCryptographer cryptographer)
         {
             this.logger = logger;

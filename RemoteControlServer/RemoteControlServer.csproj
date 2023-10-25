@@ -30,8 +30,8 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="NetworkMessage">
-			<HintPath>..\..\NetworkMessage\NetworkMessage\bin\Debug\net6.0\NetworkMessage.dll</HintPath>
-		</Reference>
+	  <Reference Include="NetworkMessage">
+	    <HintPath>..\..\RemoteControlCommunicator\NetworkMessage\bin\Debug\net6.0\NetworkMessage.dll</HintPath>
+	  </Reference>
 	</ItemGroup>
 </Project>

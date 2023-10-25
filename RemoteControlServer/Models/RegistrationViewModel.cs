@@ -6,6 +6,7 @@ namespace RemoteControlServer.Models
     public class RegistrationViewModel
     {
         [Required(ErrorMessage = "Поле \"логин\" не должно быть пустым")]
+        [StringLength(20, MinimumLength = 3, ErrorMessage = "Длина строки должна быть от 3 до 20 символов")]
         [Display(Name="Логин")]
         public string Login { get; set; }
 
@@ -15,11 +16,13 @@ namespace RemoteControlServer.Models
         public string Email { get; set; }
 
         [Required(ErrorMessage = "Поле \"пароль\" не должно быть пустым")]
+        [StringLength(20, MinimumLength = 3, ErrorMessage = "Длина строки должна быть от 3 до 20 символов")]
         [Display(Name = "Пароль")]
         [DataType(DataType.Password)]
         public string Password { get; set; }
 
         [Required(ErrorMessage = "Необходимо подтвердить пароль")]
+        [StringLength(20, MinimumLength = 3, ErrorMessage = "Длина строки должна быть от 3 до 20 символов")]
         [Display(Name = "Подтвердить пароль")]
         [Compare("Password",ErrorMessage ="Пароли не соответствуют")]
         public string ConfirmPassword { get; set; }

@@ -6,21 +6,17 @@ using System.Linq.Expressions;
 
 namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
-    public class UserDbRepository : IGenericRepository<User>
+    public class UserDbRepository : IUserRepository
     {
-        private readonly IServiceProvider serviceProvider;        
+        private readonly IServiceScope scope;
         private readonly ILogger<UserDbRepository> logger;
-        private readonly IHashCreater hashCreator;        
+        private readonly IHashCreater hashCreator;
 
         public UserDbRepository(IServiceProvider serviceProvider, ILogger<UserDbRepository> logger, IHashCreater hashCreator)
         {
-            if (serviceProvider == default) throw new ArgumentNullException(nameof(UserDbRepository.serviceProvider));
-            if (logger == default) throw new ArgumentNullException(nameof(logger));
-            if (hashCreator == default) throw new ArgumentNullException(nameof(hashCreator));            
-
-            this.serviceProvider = serviceProvider;            
-            this.logger = logger;
-            this.hashCreator = hashCreator;
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            this.hashCreator = hashCreator ?? throw new ArgumentNullException(nameof(hashCreator));
+            scope = serviceProvider?.CreateScope() ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         public async Task<bool> AddAsync(User item)
@@ -29,18 +25,41 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             {
                 item.Salt = hashCreator.GenerateSalt();
                 item.PasswordHash = hashCreator.Hash(item.PasswordHash, item.Salt);
-
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                if (await context.Users.AnyAsync(x => x.Id == item.Id || x.Email.Equals(item.Email)))
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    if (await context.Users.AnyAsync(x => x.Id == item.Id || x.Email.Equals(item.Email)))
-                    {
-                        return false;
-                    }
-
-                    await context.Users.AddAsync(item);
-                    return true;
+                    return false;
                 }
+
+                await context.Users.AddAsync(item);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return false;
+            }
+        }
+
+        public async Task<bool> AddDeviceAsync(int id, Device device)
+        {
+            try
+            {
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                User user = await context.Users.FindAsync(id);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                if (user.Devices.Any(x => x.HwidHash.Equals(device.HwidHash)))
+                {
+                    return false;
+                }
+
+                user.Devices.Add(device);
+                await context.SaveChangesAsync();
+                return true;
             }
             catch (Exception ex)
             {
@@ -53,18 +72,15 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                User u = await context.Users.FindAsync(id);
+                if (u != null)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    User u = await context.Users.FirstOrDefaultAsync(x => x.Id == id);
-                    if (u != null)
-                    {
-                        context.Users.Remove(u);
-                        return true;
-                    }
-
-                    return false;
+                    context.Users.Remove(u);
+                    return true;
                 }
+
+                return false;
             }
             catch (Exception ex)
             {
@@ -73,38 +89,46 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<User> FindByIdAsync(int id)
+        public Task<User> FindByEmailAsync(string email)
         {
-            using (var scope = serviceProvider.CreateScope())
+            try
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                try
-                {
-                    return await context.Users.Include(x => x.Devices).FirstOrDefaultAsync(x => x.Id == id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, null, null);
-                    return default;
-                }
+                return context.Users.Include(x => x.Devices)
+                    .FirstOrDefaultAsync(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return default;
             }
         }
 
-        public async Task<User> FirstOrDefaultAsync(Expression<Func<User, bool>> predicate)
+        public async Task<User> FindByIdAsync(int id)
         {
-            using (var scope = serviceProvider.CreateScope())
+            try
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                return await context.Users.Include(x => x.Devices).FirstOrDefaultAsync(predicate);
+                return await context.Users.Include(x => x.Devices).FirstOrDefaultAsync(x => x.Id == id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return default;
             }
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
         {
-            using (var scope = serviceProvider.CreateScope())
+            try
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
                 return await context.Users.Include(x => x.Devices).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return default;
             }
         }
 
@@ -112,17 +136,14 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                int entries = await context.SaveChangesAsync();
+                if (entries < 1)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    int entries = await context.SaveChangesAsync();
-                    if (entries < 1)
-                    {
-                        return false;
-                    }
-
-                    return true;
+                    return false;
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -135,24 +156,22 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                User changedUser = await context.Users.FirstOrDefaultAsync(x => x.Id == item.Id);
+                if (changedUser != null)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    User changedUser = await context.Users.FirstOrDefaultAsync(x => x.Id == item.Id);
-                    if (changedUser != null)
+                    System.Reflection.PropertyInfo[] props = changedUser.GetType().GetProperties();
+                    foreach (System.Reflection.PropertyInfo prop in props)
                     {
-                        System.Reflection.PropertyInfo[] props = changedUser.GetType().GetProperties();
-                        foreach (System.Reflection.PropertyInfo prop in props)
-                        {
-                            if (prop.Name.Equals(nameof(User.Id))) continue;
-                            prop.SetValue(changedUser, prop.GetValue(item));
-                        }
-
-                        return true;
+                        if (prop.Name.Equals(nameof(User.Id))) continue;
+                        prop.SetValue(changedUser, prop.GetValue(item));
                     }
 
-                    return false;
+                    await context.SaveChangesAsync();
+                    return true;
                 }
+
+                return false;
             }
             catch (Exception ex)
             {

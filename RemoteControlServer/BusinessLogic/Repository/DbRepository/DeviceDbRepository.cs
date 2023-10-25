@@ -1,40 +1,32 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using NetworkMessage.Cryptography;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Database;
-using System.Linq.Expressions;
 
 namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
-    public class DeviceDbRepository : IGenericRepository<Device>
+    public class DeviceDbRepository : IDeviceRepository
     {
-        private readonly IServiceProvider serviceProvider;        
-        private readonly ILogger<UserDbRepository> logger;        
+        private readonly IServiceScope scope;        
+        private readonly ILogger<UserDbRepository> logger;
 
         public DeviceDbRepository(IServiceProvider serviceProvider, ILogger<UserDbRepository> logger)
-        {
-            if (serviceProvider == default) throw new ArgumentNullException(nameof(serviceProvider));
-            if (logger == default) throw new ArgumentNullException(nameof(logger));
-
-            this.serviceProvider = serviceProvider;            
-            this.logger = logger;
+        {            
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            scope = serviceProvider?.CreateScope() ?? throw new ArgumentNullException(nameof(serviceProvider));            
         }
 
         public async Task<bool> AddAsync(Device item)
-        {
+        { 
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                if (await context.Devices.AnyAsync(x => x.Id == item.Id || x.HwidHash.Equals(item.HwidHash)))
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    if (await context.Devices.AnyAsync(x => x.Id == item.Id || x.HwidHash.Equals(item.HwidHash)))
-                    {
-                        return false;
-                    }
-
-                    await context.Devices.AddAsync(item);
-                    return true;
+                    return false;
                 }
+
+                await context.Devices.AddAsync(item);
+                return true;
             }
             catch (Exception ex)
             {
@@ -44,21 +36,18 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         }
 
         public async Task<bool> DeleteAsync(int id)
-        {
+        {           
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                Device d = await context.Devices.FindAsync(id);
+                if (d != null)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    Device d = await context.Devices.FirstOrDefaultAsync(x => x.Id == id);
-                    if (d != null)
-                    {
-                        context.Devices.Remove(d);
-                        return true;
-                    }
-
-                    return false;
+                    context.Devices.Remove(d);
+                    return true;
                 }
+
+                return false;
             }
             catch (Exception ex)
             {
@@ -67,15 +56,13 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<Device> FindByIdAsync(int id)
+        public async Task<Device> FindByHwidHashAsync(string hwidHash)
         {
             try
             {
-                using (var scope = serviceProvider.CreateScope())
-                {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    return await context.Devices.FirstOrDefaultAsync(x => x.Id == id);
-                }
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                return await context.Devices.Include(x => x.User)
+                    .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidHash));
             }
             catch (Exception ex)
             {
@@ -84,21 +71,31 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<Device> FirstOrDefaultAsync(Expression<Func<Device, bool>> predicate)
+        public async Task<Device> FindByIdAsync(int id)
         {
-            using (var scope = serviceProvider.CreateScope())
-            {
+            try
+            {                
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                return await context.Devices.Include(x => x.User).FirstOrDefaultAsync(predicate);
+                return await context.Devices.FindAsync(id);
             }
-        }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return default;
+            }
+        }        
 
         public async Task<IEnumerable<Device>> GetAllAsync()
         {
-            using (var scope = serviceProvider.CreateScope())
+            try
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
                 return await context.Devices.Include(x => x.User).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return default;
             }
         }
 
@@ -106,17 +103,14 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                int entries = await context.SaveChangesAsync();
+                if (entries < 1)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    int entries = await context.SaveChangesAsync();
-                    if (entries < 1)
-                    {
-                        return false;
-                    }
-
-                    return true;
+                    return false;
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -129,24 +123,22 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                using (var scope = serviceProvider.CreateScope())
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                Device changedUser = await context.Devices.FirstOrDefaultAsync(x => x.Id == item.Id);
+                if (changedUser != null)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                    Device changedUser = await context.Devices.FirstOrDefaultAsync(x => x.Id == item.Id);
-                    if (changedUser != null)
+                    System.Reflection.PropertyInfo[] props = changedUser.GetType().GetProperties();
+                    foreach (System.Reflection.PropertyInfo prop in props)
                     {
-                        System.Reflection.PropertyInfo[] props = changedUser.GetType().GetProperties();
-                        foreach (System.Reflection.PropertyInfo prop in props)
-                        {
-                            if (prop.Name.Equals(nameof(User.Id))) continue;
-                            prop.SetValue(changedUser, prop.GetValue(item));
-                        }
-
-                        return true;
+                        if (prop.Name.Equals(nameof(User.Id))) continue;
+                        prop.SetValue(changedUser, prop.GetValue(item));
                     }
 
-                    return false;
+                    await context.SaveChangesAsync();
+                    return true;
                 }
+
+                return false;
             }
             catch (Exception ex)
             {

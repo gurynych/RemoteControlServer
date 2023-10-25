@@ -4,8 +4,8 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
     public interface IDbRepository
     {
-        IGenericRepository<User> Users { get; }
+        IUserRepository Users { get; }
 
-        IGenericRepository<Device> Devices { get; }
+        IDeviceRepository Devices { get; }
     }
 }

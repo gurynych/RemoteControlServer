@@ -38,8 +38,8 @@ namespace RemoteControlServer
             builder.Services.AddSingleton<IAsymmetricCryptographer, RSACryptographer>();
             builder.Services.AddSingleton<IHashCreater, BCryptCreater>();
             builder.Services.AddSingleton<ServerListener>();
-            builder.Services.AddSingleton<IGenericRepository<User>, UserDbRepository>();
-            builder.Services.AddSingleton<IGenericRepository<Device>, DeviceDbRepository>();
+            builder.Services.AddSingleton<IUserRepository, UserDbRepository>();
+            builder.Services.AddSingleton<IDeviceRepository, DeviceDbRepository>();
             builder.Services.AddSingleton<IDbRepository, DbRepository>();
             builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

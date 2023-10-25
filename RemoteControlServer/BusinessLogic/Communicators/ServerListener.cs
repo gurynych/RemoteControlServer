@@ -3,6 +3,7 @@ using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace RemoteControlServer.BusinessLogic.Communicators
 {
@@ -21,12 +22,10 @@ namespace RemoteControlServer.BusinessLogic.Communicators
 
         public ServerListener(ILogger<ServerListener> logger, IAsymmetricCryptographer cryptographer,
             AsymmetricKeyStoreBase keyStore, IDbRepository dbRepository)
-        //IServiceProvider serviceProvider)
         {
             this.logger = logger;
             this.cryptographer = cryptographer;
-            this.keyStore = keyStore;
-            //this.serviceProvider = serviceProvider;
+            this.keyStore = keyStore;            
             this.dbRepository = dbRepository;
             listener = new TcpListener(IPAddress.Any, 11000);
             cancelTokenSrc = new CancellationTokenSource();
@@ -49,19 +48,19 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                     {
                         logger.LogInformation("Start connection to {client}", client.Client.RemoteEndPoint);
                         ClientDevice clientDevice = new ClientDevice(client, cryptographer, keyStore, dbRepository);
-                        CancellationTokenSource tokenSource = new CancellationTokenSource(10000);
-                        _ = Task.Run(() =>
+                        CancellationTokenSource tokenSource = new CancellationTokenSource(100000);
+                        _ = Task.Run(async () =>
                         {
                             logger.LogInformation("Handshake with {client}", client.Client.RemoteEndPoint);
                             try
                             {
-                                clientDevice.Handshake(tokenSource.Token);
-                                if (ClientDevices.Any(x => x.Device.HwidHash.Equals(clientDevice.Device.HwidHash)))
+                                await clientDevice.Handshake(tokenSource.Token);
+                                /*if (ClientDevices.Any(x => x.Device.HwidHash.Equals(clientDevice.Device.HwidHash)))
                                 {
                                     ClientDevices.Remove(clientDevice);
                                 }
 
-                                ClientDevices.Add(clientDevice);
+                                ClientDevices.Add(clientDevice);*/
                                 logger.LogInformation("Connection successful to {client}", client.Client.RemoteEndPoint);
                             }
                             catch (Exception ex)

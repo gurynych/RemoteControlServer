@@ -30,46 +30,21 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             this.dbRepository = dbRepository;
         }
 
-        public override void Handshake(CancellationToken token)
+        public override async Task Handshake(CancellationToken token)
         {
             try
             {
-                int repeatCount = 0;
-                PublicKeyResult publicKeyResult;
-                do
-                {
-                    token.ThrowIfCancellationRequested();
-                    if (repeatCount == 3)
-                    {
-                        throw new SocketException();
-                    }
-
-                    publicKeyResult = ReceivePublicKey();
-                    repeatCount++;
-                } while (publicKeyResult == default);
-
+                //r->s->r
+                PublicKeyResult publicKeyResult = await ReceivePublicKeyAsync(token);
                 SetExternalPublicKey(publicKeyResult.PublicKey);
                 HwidCommand hwidCommand = new HwidCommand();
-                Send(hwidCommand);
-
-                repeatCount = 0;
-                HwidResult hwidResult = Receive() as HwidResult;
-                do
+                await SendAsync(hwidCommand, token);
+                INetworkObject networkObject = await ReceiveAsync(token);
+                if (networkObject is HwidResult hwidResult)
                 {
                     token.ThrowIfCancellationRequested();
-                    if (repeatCount == 3)
-                    {
-                        throw new SocketException();
-                    }
-
-                    hwidResult = Receive() as HwidResult;
-                    repeatCount++;
-                } while (hwidResult == default);
-
-                token.ThrowIfCancellationRequested();
-                Device = dbRepository.Devices
-                    .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidResult.Hwid))
-                    .Result;
+                    Device = await dbRepository.Devices.FindByHwidHashAsync(hwidResult.Hwid);
+                }
 
                 if (Device == null) throw new NullReferenceException(nameof(Device));
             }

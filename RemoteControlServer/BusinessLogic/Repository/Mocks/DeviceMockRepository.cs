@@ -1,5 +1,6 @@
 ﻿using NetworkMessage.Cryptography;
 using RemoteControlServer.BusinessLogic.Database.Models;
+using System.Linq.Expressions;
 
 namespace RemoteControlServer.BusinessLogic.Repository.Mocks
 {
@@ -9,56 +10,60 @@ namespace RemoteControlServer.BusinessLogic.Repository.Mocks
         private readonly IAsymmetricCryptographer cryptographer;
         private List<Device> devices;
 
-        public DeviceMockRepository(IHashCreater hash, IAsymmetricCryptographer cryptographer)
+        public DeviceMockRepository(IHashCreater hashCreater, IAsymmetricCryptographer cryptographer)
         {
-            this.hash = hash;
+            this.hash = hashCreater;
             this.cryptographer = cryptographer;                       
 
-            List<User> users = new UserMockRepository(hash, cryptographer).GetAll().ToList();
+            List<User> users = new UserMockRepository(hashCreater, cryptographer).GetAllAsync().Result.ToList();
             devices = new List<Device>()
-            {                                  //gurynychHWID
-                new Device() { Id = 1, HwidHash = "7113281bb52c59deb42604b83c5713fe00d81bf4ca180ac1189ff42bac14abea", UserId = 1, User = users[0] },
-                                               //hawk0ffHWID
-                new Device() { Id = 2, HwidHash = "1fe65d27f3aea8338b04d14c006fc9c382f8f0259233ce97a5d4b2dc4f9ff1ca", UserId = 2, User = users[1] }
+            {
+                new Device() { Id = 1, HwidHash = "A64462AFAA94750EEB90B2603B7A4067AFD8A791", UserId = 1, User = users[0] },
+                new Device() { Id = 2, HwidHash = "A64462AFAA94750EEB90B2603B7A4067AFD8A791", UserId = 2, User = users[1] }
             };
         }
 
-        public bool AddItem(Device item)
+        public Task<bool> AddAsync(Device item)
         {
-            if (devices.Any(x => x.HwidHash == item.HwidHash))
+            if (devices.Any(x => x.Id == item.Id || x.HwidHash == item.HwidHash))
             {                
-                return false;
+                return Task.FromResult(false);
             }
 
             devices.Add(item);
-            return true;
+            return Task.FromResult(true);
         }
 
-        public bool Delete(int id)
+        public Task<bool> DeleteAsync(int id)
         {
             Device d = devices.FirstOrDefault(x => x.Id == id);
             if (d != null)
             {
                 devices.Remove(d);
-                return true;
+                return Task.FromResult(true);
             }
 
-            return false;
+            return Task.FromResult(false);
         }
 
-        public Device Get(int id)
+        public Task<Device> FindByIdAsync(int id)
         {
-            return devices.FirstOrDefault(x => x.Id == id);
-        }
+            return Task.FromResult(devices.FirstOrDefault(x => x.Id == id));
+        }        
 
-        public IEnumerable<Device> GetAll()
+        public Task<Device> FirstOrDefaultAsync(Expression<Func<Device, bool>> predicate)
         {
-            return devices;
+            throw new NotImplementedException();
         }
 
-        public bool SaveChanges() => true;
+        public Task<IEnumerable<Device>> GetAllAsync()
+        {
+            return Task.FromResult(devices.AsEnumerable());
+        }
 
-        public bool Update(Device item)
+        public Task<bool> SaveChangesAsync() => Task.FromResult(true);
+
+        public Task<bool> UpdateAsync(Device item)
         {
             Device changedUser = devices.FirstOrDefault(x => x.Id == item.Id);
             if (changedUser != null)
@@ -66,13 +71,14 @@ namespace RemoteControlServer.BusinessLogic.Repository.Mocks
                 System.Reflection.PropertyInfo[] props = changedUser.GetType().GetProperties();
                 foreach (System.Reflection.PropertyInfo prop in props)
                 {
+                    if (prop.Name.Equals(nameof(Device.Id))) continue;
                     prop.SetValue(changedUser, prop.GetValue(item));
                 }
 
-                return true;
+                return Task.FromResult(true);
             }
 
-            return false;
+            return Task.FromResult(false);
         }
     }
 }

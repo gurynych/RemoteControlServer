@@ -6,6 +6,7 @@ using NetworkMessage.Cryptography;
 using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Net.Sockets;
 
 namespace RemoteControlServer.BusinessLogic.Communicators
@@ -13,55 +14,37 @@ namespace RemoteControlServer.BusinessLogic.Communicators
     public class ClientDevice : TcpClientCryptoCommunicator
     {
         private readonly ApplicationContext context;
-        public Device Device { get; set; }
+        private readonly IDbRepository dbRepository;
+
+        public Device Device { get; private set; }
 
         /// <exception cref="NotImplementedException"/>
         /// <exception cref="ArgumentNullException"/>
         public ClientDevice(TcpClient client, IAsymmetricCryptographer cryptographer, 
-            AsymmetricKeyStoreBase keyStore, ApplicationContext context)
+            AsymmetricKeyStoreBase keyStore, IDbRepository dbRepository)
+            //ApplicationContext context)
             : base(client, cryptographer, keyStore)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            this.context = context;
+            //if (context == null) throw new ArgumentNullException(nameof(context));
+            //this.context = context;
+            this.dbRepository = dbRepository;
         }
 
-        public override void Handshake()
+        public override async Task Handshake(CancellationToken token)
         {
             try
             {
-                int repeatCount = 0;
-                PublicKeyResult publicKeyResult;
-                do
-                {
-                    if (repeatCount == 3)
-                    {
-                        throw new SocketException();
-                    }
-
-                    publicKeyResult = ReceivePublicKey();
-                    repeatCount++;
-                } while (publicKeyResult == default);
-
+                //r->s->r
+                PublicKeyResult publicKeyResult = await ReceivePublicKeyAsync(token);
                 SetExternalPublicKey(publicKeyResult.PublicKey);
                 HwidCommand hwidCommand = new HwidCommand();
-                Send(hwidCommand);
-
-                repeatCount = 0;
-                HwidResult hwidResult = Receive() as HwidResult;
-                do
+                await SendAsync(hwidCommand, token);
+                INetworkObject networkObject = await ReceiveAsync(token);
+                if (networkObject is HwidResult hwidResult)
                 {
-                    if (repeatCount == 3)
-                    {
-                        throw new SocketException();
-                    }
-
-                    hwidResult = Receive() as HwidResult;
-                    repeatCount++;
-                } while (hwidResult == default);
-
-                Device = context.Devices
-                    .Include(x => x.User)
-                    .FirstOrDefault(x => x.HwidHash.Equals(hwidResult.Hwid));
+                    token.ThrowIfCancellationRequested();
+                    Device = await dbRepository.Devices.FindByHwidHashAsync(hwidResult.Hwid);
+                }
 
                 if (Device == null) throw new NullReferenceException(nameof(Device));
             }

@@ -54,7 +54,7 @@ namespace RemoteControlServer.Controllers
         [HttpPost("AuthorizeFromDevice")]
         public async Task<byte[]> Post([FromForm] string email, [FromForm] string password, [FromForm] string hwidHash)
         {
-            logger.LogInformation($"Try authorize: email: {email}");
+            logger.LogInformation("Try authorize: {email}", email);
             var a = context.Users.Include(x => x.Devices);
             User user = await context.Users.Include(x => x.Devices)
                 .FirstOrDefaultAsync(x => x.Email.Equals(email));

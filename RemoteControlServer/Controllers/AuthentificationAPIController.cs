@@ -5,6 +5,7 @@ using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.KeyStore;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 
 namespace RemoteControlServer.Controllers
 {
@@ -13,16 +14,16 @@ namespace RemoteControlServer.Controllers
     public class AuthentificationAPIController : ControllerBase
     {
         private readonly ILogger<AuthentificationAPIController> logger;
-        private readonly ApplicationContext context;
+        private readonly IDbRepository dbRepository;
         private readonly IHashCreater hashCreater;
         private readonly IAsymmetricCryptographer cryptographer;
         private readonly AsymmetricKeyStoreBase keyStore;
 
-        public AuthentificationAPIController(ILogger<AuthentificationAPIController> logger, ApplicationContext context,
+        public AuthentificationAPIController(ILogger<AuthentificationAPIController> logger, IDbRepository dbRepository,
             IHashCreater hashCreater, IAsymmetricCryptographer cryptographer, AsymmetricKeyStoreBase keyStore)
         {
             this.logger = logger;
-            this.context = context;
+            this.dbRepository = dbRepository;
             this.hashCreater = hashCreater;
             this.cryptographer = cryptographer;
             this.keyStore = keyStore;
@@ -38,7 +39,7 @@ namespace RemoteControlServer.Controllers
         [HttpPost("Authorize")]
         public async Task<bool> Post([FromForm] string email, [FromForm] string passwordHash)
         {
-            User user = await context.Users.FirstOrDefaultAsync(x => x.Email.Equals(email));
+            User user = await dbRepository.Users.FindByEmailAsync(email);
             if (user != null)
             {
                 if (user.PasswordHash.Equals(passwordHash))
@@ -62,8 +63,7 @@ namespace RemoteControlServer.Controllers
                 return BadRequest();
             }
 
-            User user = await context.Users.Include(x => x.Devices)
-                .FirstOrDefaultAsync(x => x.Email.Equals(email));
+            User user = await dbRepository.Users.FindByEmailAsync(email);
 
             if (user == null) return NotFound();
 
@@ -71,22 +71,21 @@ namespace RemoteControlServer.Controllers
 
             if (!user.PasswordHash.Equals(passwordHash)) return BadRequest();
 
-            Device device = await context.Devices.Include(x => x.User)
-                    .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidHash));
+            Device device = await dbRepository.Devices
+                    .FindByHwidHashAsync(hwidHash);
 
             if (device == null)
             {
                 device = new Device(hwidHash, user);
-                await context.Devices.AddAsync(device);
+                await dbRepository.Devices.AddAsync(device);
             }
 
             if (!user.Devices.Any(x => x.HwidHash.Equals(hwidHash)))
             {
-                user.Devices.Add(device);
-                await context.SaveChangesAsync();
+                await dbRepository.Users.AddDeviceAsync(user.Id, device);
             }
 
-            await context.SaveChangesAsync();
+            await dbRepository.Users.SaveChangesAsync();
             var publicKey = keyStore.GetPublicKey();
             return Ok(publicKey);
         }
@@ -103,23 +102,22 @@ namespace RemoteControlServer.Controllers
             {
                 return BadRequest();
             }
-            User user = await context.Users
-                .FirstOrDefaultAsync(x => x.Email.Equals(email));
+            User user = await dbRepository.Users
+                .FindByEmailAsync(email);
             if (user != null) return NoContent();
 
             user = new User(login, email, password);
-            Device device = await context.Devices
-                    .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidHash));
+            Device device = await dbRepository.Devices
+                    .FindByHwidHashAsync(hwidHash);
             if (device == null)
             {
                 device = new Device(hwidHash, user);
-                await context.Devices.AddAsync(device);
+                await dbRepository.Devices.AddAsync(device);
             }
 
-            user.Devices.Add(device);
-
-            await context.Users.AddAsync(user);
-            await context.SaveChangesAsync();
+            await dbRepository.Users.AddDeviceAsync(user.Id,device);
+            await dbRepository.Users.AddAsync(user);
+            await dbRepository.Users.SaveChangesAsync();
             var publicKey = keyStore.GetPublicKey();
             return Ok(publicKey);
         }

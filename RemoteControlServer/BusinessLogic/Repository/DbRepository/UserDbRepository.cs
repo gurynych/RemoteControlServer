@@ -89,13 +89,18 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public Task<User> FindByEmailAsync(string email)
+        public async Task<User> FindByEmailAsync(string email)
         {
             try
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                return context.Users.Include(x => x.Devices)
-                    .FirstOrDefaultAsync(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+                User a = await context.Users.Include(x => x.Devices)
+                    .FirstOrDefaultAsync(x => x.Email.Equals(email));
+                return a;
+            }
+            catch (NullReferenceException nullEx)
+            {
+                throw nullEx;
             }
             catch (Exception ex)
             {

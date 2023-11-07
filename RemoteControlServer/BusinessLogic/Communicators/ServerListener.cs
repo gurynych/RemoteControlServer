@@ -1,9 +1,10 @@
 ﻿using NetworkMessage.Cryptography;
 using NetworkMessage.Cryptography.KeyStore;
+using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
 namespace RemoteControlServer.BusinessLogic.Communicators
 {
@@ -13,10 +14,9 @@ namespace RemoteControlServer.BusinessLogic.Communicators
         private readonly ILogger<ServerListener> logger;
         private readonly IAsymmetricCryptographer cryptographer;
         private readonly AsymmetricKeyStoreBase keyStore;
-        private readonly IServiceProvider serviceProvider;
         private readonly IDbRepository dbRepository;
-        private Thread thread;
-        private CancellationTokenSource cancelTokenSrc;
+        private readonly CancellationTokenSource tokenSource;
+        private readonly Thread thread;
 
         public List<ClientDevice> ClientDevices { get; }
 
@@ -25,10 +25,10 @@ namespace RemoteControlServer.BusinessLogic.Communicators
         {
             this.logger = logger;
             this.cryptographer = cryptographer;
-            this.keyStore = keyStore;            
+            this.keyStore = keyStore;
             this.dbRepository = dbRepository;
             listener = new TcpListener(IPAddress.Any, 11000);
-            cancelTokenSrc = new CancellationTokenSource();
+            tokenSource = new CancellationTokenSource();
             ClientDevices = new List<ClientDevice>();
 
             listener.Start();
@@ -38,30 +38,51 @@ namespace RemoteControlServer.BusinessLogic.Communicators
 
         public void AcceptSockets()
         {
-            try
+
+            logger.LogInformation("Begin listening connections");
+            while (!tokenSource.IsCancellationRequested)
             {
-                logger.LogInformation("Begin listening connections");
-                while (!cancelTokenSrc.IsCancellationRequested)
+                try
                 {
                     TcpClient client = listener.AcceptTcpClient();
                     if (client != null)
                     {
                         logger.LogInformation("Start connection to {client}", client.Client.RemoteEndPoint);
-                        ClientDevice clientDevice = new ClientDevice(client, cryptographer, keyStore, dbRepository);
-                        CancellationTokenSource tokenSource = new CancellationTokenSource(100000);
+                        ClientDevice newCD = new ClientDevice(client, cryptographer, keyStore, dbRepository);
+                        CancellationTokenSource tokenSource = new CancellationTokenSource(15000);
                         _ = Task.Run(async () =>
                         {
                             logger.LogInformation("Handshake with {client}", client.Client.RemoteEndPoint);
                             try
                             {
-                                await clientDevice.Handshake(tokenSource.Token);
-                                /*if (ClientDevices.Any(x => x.Device.HwidHash.Equals(clientDevice.Device.HwidHash)))
+                                await newCD.Handshake(tokenSource.Token);
+                                User deviceUser = newCD.Device.User;
+                                if (deviceUser == null || dbRepository.Users.FindByEmailAsync(deviceUser.Email) == null)
                                 {
-                                    ClientDevices.Remove(clientDevice);
+                                    throw new NullReferenceException(nameof(deviceUser));
                                 }
 
-                                ClientDevices.Add(clientDevice);*/
+                                ClientDevice existingCD = ClientDevices
+                                        .FirstOrDefault(x => x.Device.HwidHash.Equals(newCD.Device.HwidHash)
+                                                && x.Device.User.Email.Equals(deviceUser.Email, StringComparison.OrdinalIgnoreCase));
+
+                                if (existingCD != null)
+                                {
+                                    ClientDevices.Remove(existingCD);
+                                }
+
+                                ClientDevices.Add(newCD);
                                 logger.LogInformation("Connection successful to {client}", client.Client.RemoteEndPoint);
+                            }
+                            catch (NullReferenceException nullEx)
+                            {
+                                logger.LogError("Connection {object} was null. {client}", nullEx.Message, client.Client.RemoteEndPoint);
+                                client.Close();
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                logger.LogError("Connection timeout to {client}", client.Client.RemoteEndPoint);
+                                client.Close();
                             }
                             catch (Exception ex)
                             {
@@ -71,178 +92,18 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                         });
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogCritical(ex.ToString());
-                //thread.Start();
+                catch (Exception ex)
+                {
+                    logger.LogCritical("{exMessage}", ex.Message);
+                }
             }
         }
-
-        /*public async Task<INetworkCommandResult> ReceiveAsync()
-        {
-            //
-            NetworkStream? stream = ConnectedDevices.FirstOrDefault()?.TcpClient.GetStream();
-            //
-            if (stream == null) return null;
-
-            try
-            {
-                int resultSize = await ReceiveResultSizeAsync(stream);
-                if (resultSize == 0) return null;
-
-                string jsonStr = await ReceiveJsonAsync(stream, resultSize);
-                if (jsonStr == string.Empty) return null;
-
-                return JsonConvert.DeserializeObject<INetworkCommandResult>(json);
-            }
-            catch { throw; }
-        }*/
-
-        /*private async Task<int> ReceiveResultSizeAsync(NetworkStream stream)
-        {
-            if (stream != null)
-            {
-                try
-                {
-                    byte[] sizeBuffer = new byte[sizeof(int)];
-                    int readedBytes = await stream.ReadAsync(sizeBuffer, 0, sizeBuffer.Length);
-                    if (readedBytes == sizeBuffer.Length)
-                    {
-                        return BitConverter.ToInt32(sizeBuffer);
-                    }
-                }
-                catch (ArgumentOutOfRangeException argExc)
-                {
-                    throw argExc;
-                }
-                catch { throw; }
-
-            }
-
-            return 0;
-        }
-
-        private async Task<string> ReceiveJsonAsync(NetworkStream stream, int resultSize)
-        {
-            if (stream != null && resultSize != 0)
-            {
-                try
-                {
-                    byte[] msgBuffer = new byte[resultSize];
-                    resultSize = await stream.ReadAsync(msgBuffer, cancellationTokenSource.Token);
-                    if (resultSize == msgBuffer.Length)
-                    {
-                        return Encoding.UTF8.GetString(msgBuffer);
-                    }
-                }
-                catch { throw; }
-            }
-
-            return string.Empty;
-        }        
-
-        */
-
-        /*public async Task SendAsync(INetworkObject netObject)
-        {
-            //
-            NetworkStream? stream = ConnectedDevices.FirstOrDefault()?.TcpClient.GetStream();
-            //
-            if (stream != null)
-            {
-                byte[] data = netObject.ToByteArray();
-                byte[] size = BitConverter.GetBytes(data.Length);
-                byte[] sizeData = new byte[size.Length + data.Length];
-
-                Buffer.BlockCopy(size, 0, sizeData, 0, size.Length);
-                Buffer.BlockCopy(data, 0, sizeData, size.Length, data.Length);
-
-                await stream.WriteAsync(sizeData, cancellationTokenSource.Token);
-                
-                //logger.Log(LogLevel.Information, $"{networkMessage.Size} bytes message sent to {stream.Socket.RemoteEndPoint}");
-            }
-        }*/
-
-        /*public async Task<INetworkObject> ReceiveAsync()
-        {
-            //
-            NetworkStream? stream = ConnectedDevices.FirstOrDefault()?.TcpClient.GetStream();
-            //
-            if (stream == null) return null;
-
-            try
-            {
-                byte[] sizeBuffer = new byte[sizeof(int)];
-                int readedByte = await stream.ReadAsync(sizeBuffer, 0, sizeof(int), cancellationTokenSource.Token);
-                if (sizeof(int) != readedByte) return null;
-
-                int size = BitConverter.ToInt32(sizeBuffer);
-                if (size == 0) return null;
-
-                byte[] data = new byte[size];
-                await stream.ReadAsync(data, 0, size, cancellationTokenSource.Token);
-
-                string json = Encoding.UTF8.GetString(data);
-                if (json == string.Empty) return null;                
-
-                return JsonConvert.DeserializeObject<INetworkCommandResult>(json);
-            }
-            catch { throw; }
-        }*/
-
-        /*public async Task SendAsync(INetworkCommand command)
-        {
-            //
-            NetworkStream stream = ConnectedDevices.FirstOrDefault()?.TcpClient.GetStream();
-            //
-            if (stream != null)
-            {
-                byte[] data = command.ToByteArray();
-                byte[] size = BitConverter.GetBytes(data.Length);
-                byte[] sizeData = new byte[size.Length + data.Length];
-
-                Buffer.BlockCopy(size, 0, sizeData, 0, size.Length);
-                Buffer.BlockCopy(data, 0, sizeData, size.Length, data.Length);
-
-                await stream.WriteAsync(sizeData, cancellationTokenSource.Token);
-
-                //logger.Log(LogLevel.Information, $"{networkMessage.Size} bytes message sent to {stream.Socket.RemoteEndPoint}");
-            }
-        }
-
-        public async Task<INetworkCommandResult> ReceiveAsync()
-        {
-            //
-            NetworkStream stream = ConnectedDevices.FirstOrDefault()?.TcpClient.GetStream();
-            //
-            if (stream == null) return default;
-
-            try
-            {
-                byte[] sizeBuffer = new byte[sizeof(int)];
-                int readedByte = await stream.ReadAsync(sizeBuffer, 0, sizeof(int), cancellationTokenSource.Token);
-                if (sizeof(int) != readedByte) return default;
-
-                int size = BitConverter.ToInt32(sizeBuffer);
-                if (size == 0) return default;
-
-                byte[] data = new byte[size];
-                await stream.ReadAsync(data, 0, size, cancellationTokenSource.Token);
-
-                string json = Encoding.UTF8.GetString(data);
-                if (json == string.Empty) return default;
-
-                return JsonConvert.DeserializeObject<INetworkCommandResult>(json);
-            }
-            catch { throw; }
-        }*/
 
         public void Stop()
         {
             listener.Stop();
             thread.Join();
-            cancelTokenSrc.Dispose();
+            tokenSource.Dispose();
         }
     }
 }

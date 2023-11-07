@@ -12,8 +12,7 @@ using System.Net.Sockets;
 namespace RemoteControlServer.BusinessLogic.Communicators
 {
     public class ClientDevice : TcpClientCryptoCommunicator
-    {
-        private readonly ApplicationContext context;
+    {        
         private readonly IDbRepository dbRepository;
 
         public Device Device { get; private set; }
@@ -25,9 +24,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             //ApplicationContext context)
             : base(client, cryptographer, keyStore)
         {
-            //if (context == null) throw new ArgumentNullException(nameof(context));
-            //this.context = context;
-            this.dbRepository = dbRepository;
+            this.dbRepository = dbRepository ?? throw new ArgumentNullException(nameof(dbRepository));
         }
 
         public override async Task Handshake(CancellationToken token)
@@ -36,6 +33,8 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             {
                 //r->s->r
                 PublicKeyResult publicKeyResult = await ReceivePublicKeyAsync(token);
+                if (publicKeyResult == default) throw new NullReferenceException(nameof(publicKeyResult));
+
                 SetExternalPublicKey(publicKeyResult.PublicKey);
                 HwidCommand hwidCommand = new HwidCommand();
                 await SendAsync(hwidCommand, token);

@@ -1,44 +1,47 @@
-﻿using Microsoft.AspNetCore.Mvc;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using NuGet.Protocol.Core.Types;
+using RemoteControlServer.BusinessLogic;
+using RemoteControlServer.BusinessLogic.Communicators;
+using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using RemoteControlServer.Models;
+using System.Security.Claims;
 
 namespace RemoteControlServer.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class DeviceController : ControllerBase
+    [Authorize]
+    public class DeviceController : Controller
     {
-        // GET: api/<DeviceController>
-        [HttpGet]
-        public IEnumerable<string> Get()
+        private readonly ILogger<DeviceController> logger;
+        private readonly ConnectedDevicesService deviceService;
+        private readonly IDbRepository dbRepository;
+
+        public DeviceController(ILogger<DeviceController> logger, ConnectedDevicesService deviceService, IDbRepository dbRepository)
         {
-            return new string[] { "value1", "value2" };
+            this.logger = logger;
+            this.deviceService = deviceService;
+            this.dbRepository = dbRepository;
         }
 
-        // GET api/<DeviceController>/5
-        [HttpGet("GetInfo/{macAddress}")]
-        public string GetInfo(int macAddress)
+        [HttpGet("[controller]/{id}/{*path}")]
+        public async Task<IActionResult> Index(int id, string path)
         {
-            //context.Devices.FirstOrDefault(x => x.Mac.Equals(macAddress));
-            return "value";
+            User user = await GetUserAsync();
+            if (!user.Devices.Any(x => x.Id == id))
+            {
+                return Forbid();
+            }
+
+            ConnectedDevice connected = deviceService.GetConnectedDeviceByDeviceId(id);
+            DeviceViewModel model = new DeviceViewModel(id, connected, path);            
+            return View(model);
         }
 
-        // POST api/<DeviceController>
-        [HttpPost]
-        public void Post([FromBody] string value)
+        private Task<User> GetUserAsync()
         {
-        }
-
-        // PUT api/<DeviceController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<DeviceController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
+            int id = int.Parse(User.FindFirstValue(ClaimTypes.Name));
+            return dbRepository.Users.FindByIdAsync(id);
         }
     }
 }

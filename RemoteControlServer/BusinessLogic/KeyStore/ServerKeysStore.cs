@@ -1,4 +1,5 @@
 ﻿using NetworkMessage.Cryptography;
+using NetworkMessage.Cryptography.AsymmetricCryptography;
 using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
@@ -9,8 +10,8 @@ namespace RemoteControlServer.BusinessLogic.KeyStore
     {
         private readonly IServiceProvider serviceProvider;
 
-        public ServerKeysStore(IServiceProvider serviceProvider, IAsymmetricCryptographer cryptographer) :
-            base(cryptographer)
+        public ServerKeysStore(IServiceProvider serviceProvider, IAsymmetricCryptographer asymmetricCryptographer) :
+            base(asymmetricCryptographer)
         {            
             this.serviceProvider = serviceProvider;
         }
@@ -20,6 +21,7 @@ namespace RemoteControlServer.BusinessLogic.KeyStore
         /// </summary>
         protected override byte[] SetPrivateKey()
         {
+            //TODO: Create KeyStore Repository
             using IServiceScope scope = serviceProvider.CreateScope();
             ApplicationContext context = scope.ServiceProvider.GetService<ApplicationContext>();
             if (context == null) return default;

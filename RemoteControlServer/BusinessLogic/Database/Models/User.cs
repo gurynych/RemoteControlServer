@@ -14,7 +14,7 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
 
         public string Salt { get; set; }
 
-        public byte[] PrivateKey { get; set; }
+        public byte[] AuthToken { get; set; }
         
         public virtual ICollection<Device> Devices { get; set;}
 

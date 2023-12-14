@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NetworkMessage.Cryptography;
+using NetworkMessage.Cryptography.Hash;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using System.Linq.Expressions;
@@ -7,16 +8,16 @@ using System.Linq.Expressions;
 namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
     public class UserDbRepository : IUserRepository
-    {
-        private readonly IServiceScope scope;
+    {               
         private readonly ILogger<UserDbRepository> logger;
         private readonly IHashCreater hashCreator;
+        private readonly ApplicationContext context;
 
-        public UserDbRepository(IServiceProvider serviceProvider, ILogger<UserDbRepository> logger, IHashCreater hashCreator)
+        public UserDbRepository(ILogger<UserDbRepository> logger, IHashCreater hashCreator, ApplicationContext context)
         {
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.hashCreator = hashCreator ?? throw new ArgumentNullException(nameof(hashCreator));
-            scope = serviceProvider?.CreateScope() ?? throw new ArgumentNullException(nameof(serviceProvider));
+            this.logger = logger;
+            this.hashCreator = hashCreator;
+            this.context = context;            
         }
 
         public async Task<bool> AddAsync(User item)
@@ -25,7 +26,8 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             {
                 item.Salt = hashCreator.GenerateSalt();
                 item.PasswordHash = hashCreator.Hash(item.PasswordHash, item.Salt);
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                // 
+
                 if (await context.Users.AnyAsync(x => x.Id == item.Id || x.Email.Equals(item.Email)))
                 {
                     return false;
@@ -45,14 +47,13 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
                 User user = await context.Users.FindAsync(id);
                 if (user == null)
                 {
                     return false;
                 }
 
-                if (user.Devices.Any(x => x.HwidHash.Equals(device.HwidHash)))
+                if (user.Devices.Any(x => x.DeviceGuid.Equals(device.DeviceGuid)))
                 {
                     return false;
                 }
@@ -72,7 +73,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                 
                 User u = await context.Users.FindAsync(id);
                 if (u != null)
                 {
@@ -89,13 +90,12 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public Task<User> FindByEmailAsync(string email)
+        public async Task<User> FindByEmailAsync(string email)
         {
             try
-            {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                return context.Users.Include(x => x.Devices)
-                    .FirstOrDefaultAsync(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            {                 
+                return await context.Users.Include(x => x.Devices)
+                    .FirstOrDefaultAsync(x => x.Email.Equals(email));
             }
             catch (Exception ex)
             {
@@ -107,9 +107,21 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         public async Task<User> FindByIdAsync(int id)
         {
             try
-            {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+            {                
                 return await context.Users.Include(x => x.Devices).FirstOrDefaultAsync(x => x.Id == id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, null, null);
+                return default;
+            }
+        }
+
+        public async Task<User> FindByTokenAsync(byte[] token)
+        {
+            try
+            {
+                return await context.Users.Include(x => x.Devices).FirstOrDefaultAsync(x => x.AuthToken == token);
             }
             catch (Exception ex)
             {
@@ -122,7 +134,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                 
                 return await context.Users.Include(x => x.Devices).ToListAsync();
             }
             catch (Exception ex)
@@ -136,13 +148,8 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                int entries = await context.SaveChangesAsync();
-                if (entries < 1)
-                {
-                    return false;
-                }
-
+                 
+                await context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -156,7 +163,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                 
                 User changedUser = await context.Users.FirstOrDefaultAsync(x => x.Id == item.Id);
                 if (changedUser != null)
                 {

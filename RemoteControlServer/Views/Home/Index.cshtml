@@ -1,8 +1,33 @@
-﻿@{
+﻿@using RemoteControlServer.BusinessLogic.Communicators
+@model DeviceViewModel
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container">
+    <div class="row-md-12">
+        @foreach (ConnectedDevice clientDevice in ViewBag.UserDevices)
+        {
+            <div class="col-md-6">
+                <div class="card rounded-4">
+                    <h5 class="card-header">@clientDevice?.Device.User.Email</h5>
+                    <div class="card-body ms-4">
+                        <span class="me-1">@clientDevice?.Device.DeviceGuid</span>
+                        @if (clientDevice.IsConnected)
+                        {
+                            <span style="font-size:25px;color:green">&#9679;</span>
+                        }
+                        else
+                        {
+                            <span style="font-size:25px;color:red">&#9679;</span>
+                        }
+
+                        <br/>
+                        <a class="btn btn-primary mt-3" href="/device/@clientDevice?.Device.Id/">Отправить</a>
+                    </div>
+                </div>
+            </div>
+
+        }
+    </div>
 </div>

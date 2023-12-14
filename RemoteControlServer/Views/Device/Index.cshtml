@@ -1,0 +1,154 @@
+﻿@using System.Security.Cryptography
+@model DeviceViewModel
+<div class="container">
+    @* @if (Model.ConnectedDevice == null)
+    {
+    <span>Не удалось получить данные об устройстве</span>
+    }
+    else
+    {
+    <div class="col-md-6">
+    <div class="card">
+    <p>DeviceId: @Model.ConnectedDevice.Device.User.Login</p>
+    <p>DeviceId: @Model.ConnectedDevice.Device.User.Email</p>
+    <p>DeviceId: @Model.ConnectedDevice.Device.DeviceGuid</p>
+    </div>
+    </div>
+    }*@
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <table class="table table-hover" id="folder">
+                        <thead>
+                            <tr>
+                                <th>Имя</th>
+                                <th>Дата создания</th>
+                                <th>Дата изменения</th>
+                                <th>Размер Мб</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="text-center" id="folderLoader">
+                                    <div class="spinner-border text-primary" style="width: 5rem; height: 5rem"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @section Scripts
+    {
+        <script>
+            $(document).ready(function () {
+                loadDir("@Model.Path") // window.location.pathname
+                window.addEventListener('popstate', function (event) {
+                    loadDir(window.location.pathname.split("/").slice(3).join("/"))
+                });
+            })
+
+            function GetFormData(path){
+                if (path[0] != '/') { 
+                    path = "/" + path 
+                }
+
+                var data = new FormData()                
+                data.append("userTokenHex", "@Convert.ToHexString((Model.ConnectedDevice?.Device?.User?.AuthToken ?? new byte[0]))")
+                data.append("deviceId", "@Model.ConnectedDevice?.Device?.Id")
+                data.append("path", "root" + path)                
+                return data
+            }
+
+            function loadDir(path){
+                $("#folder tbody tr.clickableRow").remove()
+                $("#folder #folderLoader").removeClass("d-none")
+                
+                $.ajax({
+                    url: "/api/deviceapi/GetNestedFilesInfoInDirectory",
+                    method: "post",
+                    contentType: false,
+                    processData: false,
+                    data: GetFormData(path),
+                    success: function (data) {                        
+                        data.nestedDirectoriesInfo.forEach(fillRow)
+                        data.nestedFilesInfo.forEach(fillRow)
+
+                        $("#folder #folderLoader").addClass("d-none")
+
+                        $(".directoryRow").dblclick(function (e) {
+                            if ($(e.target).prop("tagName") != "TD") {
+                                return;
+                            }
+
+                            var dir = ($($(this).children("td")[0]).text())
+                            var newPath = path + "/" + dir
+                            var addedDeviderForLocation = ""
+                            if (window.location.pathname[0] != "/") {
+                                addedDeviderForLocation = "/"
+                            }
+
+                            window.history.pushState("", "", window.location.pathname + addedDeviderForLocation + dir + "/")
+                            loadDir(newPath)
+                        })                        
+
+                        $(".downloadBtn").click(function () {
+                            var curBtn = $(this)
+                            curBtn.attr("disabled", "disabled")
+                            var name = $($(this).parent().parent().children('td')[0]).text()
+                            var p = path + "/" + name;
+                            console.log(p)
+
+                            $.ajax({
+                                url: "/api/deviceapi/downloadfile",
+                                contentType: false,
+                                processData: false,
+                                method: "post",
+                                data: GetFormData(p),
+                                xhr: function () {
+                                    var xhr = new XMLHttpRequest();
+                                    xhr.responseType = "blob";
+                                    return xhr;
+                                },
+                                success: function(data, status, xhr) {
+                                    var filename = (xhr.getResponseHeader("content-disposition").split("filename=")[1].split(";")[0])
+                                    var link = $("<a id='downloader'></a>").prop("href", window.URL.createObjectURL(new Blob([data]))).prop("download", filename)
+                                    link.addClass("hidden")
+                                    document.body.appendChild(link[0]).click()
+                                    curBtn.removeAttr("disabled")
+                                },
+                                error: function (jqXHR, exception) {
+                                    console.log(jqXHR)
+                                    console.log(exception)
+                                }
+                            })
+
+                            console.log(path)
+                        })
+                    },
+                    error: function (jqXHR, exception) {
+                        console.log(jqXHR)
+                        console.log(exception)
+                        $("#folder #folderLoader").addClass("d-none")
+                    }
+                });
+            }
+
+            function fillRow(d)
+            {
+                $("#folder > tbody").append
+                    ("<tr class='clickableRow " + (d.size == undefined ? "directoryRow" : "fileRow") + "'>" +
+                        "<td>" + d.name + "</td>" +
+                        "<td>" + d.creationDate + "</td>" +
+                        "<td>" + d.changingDate + "</td>" +
+                        "<td>" + (d.size == undefined ? "" : d.size ) + "</td>" +
+                        "<td>" + "<button class='btn btn-success downloadBtn'>Скачать</button>" + "</td>" +
+                    "</tr>")
+            }
+        </script>
+    }

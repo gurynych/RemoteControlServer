@@ -8,7 +8,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         Task<bool> AddAsync(Device item);
         Task<bool> DeleteAsync(int id);
         Task<Device> FindByIdAsync(int id);
-        Task<Device> FindByHwidHashAsync(string hwidHash);        
+        Task<Device> FindByGuidAsync(string hwidHash);        
         Task<IEnumerable<Device>> GetAllAsync();
         Task<bool> SaveChangesAsync();
         Task<bool> UpdateAsync(Device item);

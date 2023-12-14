@@ -1,4 +1,6 @@
 ﻿using NetworkMessage.Cryptography;
+using NetworkMessage.Cryptography.AsymmetricCryptography;
+using NetworkMessage.Cryptography.Hash;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using System.Linq.Expressions;
 
@@ -8,12 +10,12 @@ namespace RemoteControlServer.BusinessLogic.Repository.Mocks
     {
         private List<User> users;
         private readonly IHashCreater hashCreator;
-        private readonly IAsymmetricCryptographer cryptographer;
+        private readonly IAsymmetricCryptographer asymmetricCryptographer;
 
-        public UserMockRepository(IHashCreater hashCreator, IAsymmetricCryptographer cryptographer)
+        public UserMockRepository(IHashCreater hashCreator, IAsymmetricCryptographer asymmetricCryptographer)
         {
             this.hashCreator = hashCreator;
-            this.cryptographer = cryptographer;
+            this.asymmetricCryptographer = asymmetricCryptographer;
             users = new List<User>();
             AddAsync(new User("gurynych", "gurynych@gmail.com", "gurynychPassword") { Id = 1 });
             AddAsync(new User("ksenon", "ksenon@gmail.com", "ksenonPassword") { Id = 2 });

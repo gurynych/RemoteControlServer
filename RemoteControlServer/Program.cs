@@ -10,6 +10,13 @@ using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
+using NetworkMessage.Cryptography.AsymmetricCryptography;
+using NetworkMessage.Cryptography.Hash;
+using NetworkMessage.Cryptography.SymmetricCryptography;
+using RemoteControlServer.BusinessLogic;
 
 namespace RemoteControlServer
 {
@@ -26,46 +33,38 @@ namespace RemoteControlServer
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddDbContext<ApplicationContext>(DbContextOptions => DbContextOptions.UseNpgsql(connectionString)
-                //Debugging stuff
-                //.LogTo(Console.WriteLine, LogLevel.Information)
-                //.EnableSensitiveDataLogging()
-                //.EnableDetailedErrors()
+            //Debugging stuff
+            //.LogTo(Console.WriteLine, LogLevel.Information)
+            //.EnableSensitiveDataLogging()
+            //.EnableDetailedErrors()
             );
 
             builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
 
             builder.Services.AddMvc(mvcOtions => mvcOtions.EnableEndpointRouting = false);
             builder.Services.AddSingleton<IAsymmetricCryptographer, RSACryptographer>();
+            builder.Services.AddSingleton<ISymmetricCryptographer, AESCryptographer>();
             builder.Services.AddSingleton<IHashCreater, BCryptCreater>();
-            builder.Services.AddSingleton<ServerListener>();
-            builder.Services.AddSingleton<IUserRepository, UserDbRepository>();
-            builder.Services.AddSingleton<IDeviceRepository, DeviceDbRepository>();
-            builder.Services.AddSingleton<IDbRepository, DbRepository>();
+            builder.Services.AddScoped<IUserRepository, UserDbRepository>();
+            builder.Services.AddScoped<IDeviceRepository, DeviceDbRepository>();
+            builder.Services.AddScoped<IDbRepository, DbRepository>();
             builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidIssuer = AuthOptions.ISSUER,
-                        ValidateAudience = true,
-                        ValidAudience = AuthOptions.AUDIENCE,
-                        ValidateLifetime = true,
-                        IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
-                        ValidateIssuerSigningKey = true
-                    };
-                });
+            builder.Services.AddSingleton<ConnectedDevicesService>();
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options => options.LoginPath = "/Account/Authorization");
+            builder.Services.AddHostedService<ServerListener>();
+            builder.Services.AddAuthorization();
 
             var app = builder.Build();
+            app.UseAuthentication();
+            app.UseAuthorization();            
 
             // Configure the HTTP request pipeline.            
             app.UseStaticFiles();
             app.MapControllers();
-            //app.UseAuthorization();            
 
             if (app.Environment.IsDevelopment())
-            {                
+            {
                 app.UseSwagger();
                 app.UseSwaggerUI();
                 app.UseDeveloperExceptionPage();
@@ -79,23 +78,8 @@ namespace RemoteControlServer
             }
 
             app.UseMvcWithDefaultRoute();
-            /*app.UseHttpsRedirection(options =>
-            {
-                options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
-                options.HttpsPort = 11000;
-            });*/
-            //app.MapHub<FileHub>();
-            //app.MapHub<WpfHub>();
+            
             app.Run();
         }
-    }
-
-    public class AuthOptions
-    {
-        public const string ISSUER = "MyAuthServer"; // издатель токена
-        public const string AUDIENCE = "MyAuthClient"; // потребитель токена
-        const string KEY = "mysupersecret_secretkey!123";   // ключ для шифрации
-        public static SymmetricSecurityKey GetSymmetricSecurityKey() =>
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(KEY));
     }
 }

@@ -1,38 +1,39 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using NetworkMessage.Cryptography;
-using RemoteControlServer.BusinessLogic.Communicators;
-using RemoteControlServer.BusinessLogic.Database;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using RemoteControlServer.Models;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Security.Claims;
 
 namespace RemoteControlServer.Controllers
 {
+    [Authorize]
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> logger;
-        private readonly ServerListener tcpListener;
-        private readonly ApplicationContext context;
-        private readonly IHashCreater hashCreater;
-        private readonly IAsymmetricCryptographer cryptographer;
+        private readonly ConnectedDevicesService connectedDevices;
+        private readonly IDbRepository dbRepository;
+        private readonly User user;
 
-        public HomeController(ILogger<HomeController> logger, ServerListener tcpListener, ApplicationContext context,
-            IHashCreater hashCreater, IAsymmetricCryptographer cryptographer)
+        public HomeController(ILogger<HomeController> logger, ConnectedDevicesService connectedDevices, IDbRepository dbRepository)
         {
             this.logger = logger;
-            this.tcpListener = tcpListener;
-            this.context = context;
-            this.hashCreater = hashCreater;
-            this.cryptographer = cryptographer;
+            this.connectedDevices = connectedDevices;
+            this.dbRepository = dbRepository;
         }
 
-        public IActionResult Index()
+        
+        public async Task<IActionResult> Index()
         {
-            //context.Users.Add(new User("test", "test", "test", hashCreater, cryptographer));
-            //await context.SaveChangesAsync();
+            User user = await GetUserAsync();
+            ViewBag.UserDevices = connectedDevices.GetUserDevices(user.Id);
             return View();
         }
 
+        
         public IActionResult Privacy()
         {
             return View();
@@ -42,6 +43,12 @@ namespace RemoteControlServer.Controllers
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+
+        private Task<User> GetUserAsync()
+        {            
+            int id = int.Parse(User.FindFirstValue(ClaimTypes.Name));
+            return dbRepository.Users.FindByIdAsync(id);
         }
     }
 }

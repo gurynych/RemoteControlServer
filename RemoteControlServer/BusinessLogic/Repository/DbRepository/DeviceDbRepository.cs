@@ -6,21 +6,20 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
     public class DeviceDbRepository : IDeviceRepository
     {
-        private readonly IServiceScope scope;        
         private readonly ILogger<UserDbRepository> logger;
+        private readonly ApplicationContext context;
 
-        public DeviceDbRepository(IServiceProvider serviceProvider, ILogger<UserDbRepository> logger)
+        public DeviceDbRepository(ILogger<UserDbRepository> logger, ApplicationContext context)
         {            
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            scope = serviceProvider?.CreateScope() ?? throw new ArgumentNullException(nameof(serviceProvider));            
+            this.logger = logger;
+            this.context = context;
         }
 
         public async Task<bool> AddAsync(Device item)
         { 
             try
-            {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                if (await context.Devices.AnyAsync(x => x.Id == item.Id || x.HwidHash.Equals(item.HwidHash)))
+            {                 
+                if (await context.Devices.AnyAsync(x => x.Id == item.Id || x.DeviceGuid.Equals(item.DeviceGuid)))
                 {
                     return false;
                 }
@@ -39,7 +38,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {           
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                 
                 Device d = await context.Devices.FindAsync(id);
                 if (d != null)
                 {
@@ -56,13 +55,12 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<Device> FindByHwidHashAsync(string hwidHash)
+        public async Task<Device> FindByGuidAsync(string deviceGuid)
         {
             try
-            {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+            {                 
                 return await context.Devices.Include(x => x.User)
-                    .FirstOrDefaultAsync(x => x.HwidHash.Equals(hwidHash));
+                    .FirstOrDefaultAsync(x => x.DeviceGuid.Equals(deviceGuid));
             }
             catch (Exception ex)
             {
@@ -71,12 +69,11 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<Device> FindByIdAsync(int id)
+        public Task<Device> FindByIdAsync(int id)
         {
             try
-            {                
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                return await context.Devices.FindAsync(id);
+            {
+                return context.Devices.Include(x => x.User).FirstOrDefaultAsync();
             }
             catch (Exception ex)
             {
@@ -89,7 +86,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                 
                 return await context.Devices.Include(x => x.User).ToListAsync();
             }
             catch (Exception ex)
@@ -103,13 +100,8 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                int entries = await context.SaveChangesAsync();
-                if (entries < 1)
-                {
-                    return false;
-                }
-
+                 
+                await context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -123,7 +115,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         {
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                 
                 Device changedUser = await context.Devices.FirstOrDefaultAsync(x => x.Id == item.Id);
                 if (changedUser != null)
                 {

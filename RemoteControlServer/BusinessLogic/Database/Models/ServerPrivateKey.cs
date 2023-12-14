@@ -4,7 +4,7 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
 {
     public class ServerPrivateKey
     {
-        private const int KeyLifetime = 14;
+        private const int KeyLifetimeDays = 14;
 
         public int Id { get; set; }
 
@@ -13,7 +13,7 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
         public DateTime KeyRegistrationDate { get; set;}
 
         [NotMapped]
-        public DateTime KeyExpirationDate => KeyRegistrationDate.AddDays(KeyLifetime);
+        public DateTime KeyExpirationDate => KeyRegistrationDate.AddDays(KeyLifetimeDays);
 
         public ServerPrivateKey()
         {            

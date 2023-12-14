@@ -6,7 +6,7 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
     {
         public int Id { get; set; }        
 
-        public string HwidHash { get; set; }
+        public string DeviceGuid { get; set; }
 
         public int UserId { get; set; }
 
@@ -16,11 +16,11 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
         { 
         }
 
-        public Device(string hwid, User user)
+        public Device(string deviceGuid, User user)
         {
             User = user;
             UserId = user.Id;
-            HwidHash = hwid;
+            DeviceGuid = deviceGuid;
         }
     }
 }

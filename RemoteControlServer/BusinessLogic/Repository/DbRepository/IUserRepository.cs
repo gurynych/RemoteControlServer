@@ -9,6 +9,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         Task<bool> DeleteAsync(int id);
         Task<User> FindByIdAsync(int id);
         Task<User> FindByEmailAsync(string email);
+        Task<User> FindByTokenAsync(byte[] token);
         Task<IEnumerable<User>> GetAllAsync();
         Task<bool> SaveChangesAsync();
         Task<bool> UpdateAsync(User item);

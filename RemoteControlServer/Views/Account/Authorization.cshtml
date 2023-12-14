@@ -1,0 +1,23 @@
+﻿@model AuthorizationViewModel
+@{
+    Layout = "_AccountLayout";
+}
+<div class="container">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <form asp-action="Authorization" asp-controller="Account" method="post" >
+        <input type="email" asp-for="Email" class="form-control mb-3" placeholder="Введите свою почту" maxlength="20" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+        <input type="password" asp-for="Password" class="form-control mb-3" placeholder="Введите свой пароль" maxlength="20" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+        <input type="submit" value="Войти" class="btn btn-primary" />
+    </form>
+    <a onclick='window.location.href = "@Url.Action("Registration", "Account")"' class="btn btn-link">Зарегистрироваться</a>
+</div>
+
+
+
+
+
+
+
+

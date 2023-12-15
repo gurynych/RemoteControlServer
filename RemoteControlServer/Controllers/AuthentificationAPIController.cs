@@ -55,7 +55,7 @@ namespace RemoteControlServer.Controllers
 
             User user = await dbRepository.Users.FindByEmailAsync(email);
 
-            if (user == null) return NotFound(user);
+            if (user == null) return NotFound("Пользователь не найден");  //NotFound(user);
 
             string passwordHash = hashCreater.Hash(password, user.Salt);
 

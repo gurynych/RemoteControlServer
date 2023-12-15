@@ -1,4 +1,5 @@
-using NetworkMessage.Cryptography;
+using NetworkMessage.Cryptography.AsymmetricCryptography;
+using NetworkMessage.Cryptography.Hash;
 using System.Text;
 
 namespace RemoteControlServer.Tests

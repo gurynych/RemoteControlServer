@@ -58,8 +58,7 @@
                     path = "/" + path 
                 }
 
-                var data = new FormData()                
-                data.append("userTokenHex", "@Convert.ToHexString((Model.ConnectedDevice?.Device?.User?.AuthToken ?? new byte[0]))")
+                var data = new FormData()                                
                 data.append("deviceId", "@Model.ConnectedDevice?.Device?.Id")
                 data.append("path", "root" + path)                
                 return data
@@ -98,6 +97,10 @@
                         })                        
 
                         $(".downloadBtn").click(function () {
+                            if ($(this).parent().parent().hasClass("directoryRow")) {
+                                return
+                            }
+                            
                             var curBtn = $(this)
                             curBtn.attr("disabled", "disabled")
                             var name = $($(this).parent().parent().children('td')[0]).text()

@@ -19,11 +19,6 @@ namespace RemoteControlServer.BusinessLogic.Database
             : base(options)
         {
             Database.EnsureCreated();
-            /*var t = Users.Include(x => x.Devices).ToList();
-            Devices.Include(x => x.User);
-            var c = Users.FirstOrDefault();
-            var b = Users.Local.FirstOrDefault().Devices;
-            var a = Users.Local.FirstOrDefault().Devices.ToList();*/
         }
     }
 }

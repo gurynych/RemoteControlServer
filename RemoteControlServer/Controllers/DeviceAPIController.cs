@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Connections.Features;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using NetworkMessage;
 using NetworkMessage.CommandsResults;
 using NetworkMessage.Intents;
@@ -8,6 +11,7 @@ using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using System.Security.Claims;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -35,12 +39,47 @@ namespace RemoteControlServer.Controllers
             return "value";
         }
 
+        [Authorize]
         [HttpPost("GetNestedFilesInfoInDirectory")]
-        public async Task<IActionResult> GetNestedFilesInfoInDirectory([FromForm] string userTokenHex, [FromForm] int deviceId, [FromForm] string path)
+        public async Task<IActionResult> GetNestedFilesInfoInDirectory([FromForm] int deviceId, [FromForm] string path)
         {
-            if (string.IsNullOrWhiteSpace(userTokenHex)) return BadRequest("Empty userTokenHex");
+            byte[] userToken = (await GetUserAsync()).AuthToken;
+            if (userToken == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
 
-            byte[] userToken = Convert.FromHexString(userTokenHex);
+            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
+
+            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(connectedDevice, path);
+        }
+
+        [Authorize]
+        [HttpPost("DownloadFile")]
+        public async Task<IActionResult> DownloadFile([FromForm] int deviceId, [FromForm] string path)
+        {
+            byte[] userToken = (await GetUserAsync()).AuthToken;
+            if (userToken == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
+
+            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
+
+            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+            return await DownloadFileFromDeviceAsync(connectedDevice, path);
+        }
+
+        [HttpGet("GetNestedFilesInfoInDirectory")]
+        public async Task<IActionResult> GetNestedFilesInfoInDirectoryForCLient([FromForm] byte[] userToken, [FromForm] int deviceId, [FromForm] string path)
+        {
             if (userToken == null) return BadRequest("Empty user token");
 
             if (deviceId <= 0) return BadRequest("Invalid device id format");
@@ -55,6 +94,46 @@ namespace RemoteControlServer.Controllers
             ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
             if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
+            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(connectedDevice, path);
+        }
+
+        [HttpGet("DownloadFile")]
+        public async Task<IActionResult> DownloadFileForClient([FromForm] byte[] userToken, [FromForm] int deviceId, [FromForm] string path)
+        {
+            if (userToken == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
+
+            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
+
+            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+            return await DownloadFileFromDeviceAsync(connectedDevice, path);
+        }
+
+        public async Task<IActionResult> GetConnectedDevice([FromForm] byte[] userToken)
+        {
+            if (userToken == null) return BadRequest("Empty user token");
+
+            User user = await dbRepository.Users.FindByTokenAsync(userToken);
+            if (user == null) return NotFound("Пользователь не найден");
+
+            var usersConnectedDevices = connectedDevices.GetUserDevices(user.Id).Where(x => x.IsConnected);
+            if (!usersConnectedDevices.Any()) return NotFound("Нет подключенных устройств");
+
+            var result = usersConnectedDevices.Select(x => new { x.Device.Id });
+
+            return Ok(new
+            {
+                usersConnectedDevices
+            });
+        }
+
+        public async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(ConnectedDevice connectedDevice, string path)
+        {
             INetworkMessage message;
             BaseIntent intent;
             CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
@@ -91,52 +170,18 @@ namespace RemoteControlServer.Controllers
             }
             catch (OperationCanceledException)
             {
+                logger.LogInformation("GetNestedFilesInfoInDirectory canceled");
                 return StatusCode(StatusCodes.Status408RequestTimeout);
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogInformation("GetNestedFilesInfoInDirectory " + ex.Message);
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
 
-        // POST api/<DeviceController>
-        [HttpPost]
-        public void Post([FromBody] string value)
+        private async Task<IActionResult> DownloadFileFromDeviceAsync(ConnectedDevice connectedDevice, string path)
         {
-        }
-
-        // PUT api/<DeviceController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<DeviceController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
-        }
-
-        [HttpPost("DownloadFile")]
-        public async Task<IActionResult> DownloadFile([FromForm] string userTokenHex, [FromForm] int deviceId, [FromForm] string path)
-        {
-            if (string.IsNullOrWhiteSpace(userTokenHex)) return BadRequest("Empty userTokenHex");
-
-            byte[] userToken = Convert.FromHexString(userTokenHex);
-            if (userToken == null) return BadRequest("Empty user token");
-
-            if (deviceId <= 0) return BadRequest("Invalid device id format");
-
-            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
-
-            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
-            if (device == null) return NotFound("Device not found");
-
-            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
-
-            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
-            if (connectedDevices == null) return Forbid("Device isn't connected to server");
-
             INetworkMessage message;
             BaseIntent intent;
             CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
@@ -151,7 +196,7 @@ namespace RemoteControlServer.Controllers
                 {
                     return StatusCode(StatusCodes.Status406NotAcceptable, fileResult.ErrorMessage);
                 }
-                
+
                 string fileName = path[(path.LastIndexOf('/') + 1)..];
                 string extension = path[(path.LastIndexOf('.') + 1)..].ToLower();
                 string contentType = extension switch
@@ -178,6 +223,12 @@ namespace RemoteControlServer.Controllers
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ex);
             }
+        }
+
+        private Task<User> GetUserAsync()
+        {
+            int id = int.Parse(User.FindFirstValue(ClaimTypes.Name));
+            return dbRepository.Users.FindByIdAsync(id);
         }
     }
 }

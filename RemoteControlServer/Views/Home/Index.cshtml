@@ -10,9 +10,13 @@
         {
             <div class="col-md-6">
                 <div class="card rounded-4">
-                    <h5 class="card-header">@clientDevice?.Device.User.Email</h5>
+                    <h5 class="card-header">@clientDevice?.Device.DeviceName</h5>
                     <div class="card-body ms-4">
-                        <span class="me-1">@clientDevice?.Device.DeviceGuid</span>
+                        <span class="me-1">@clientDevice?.Device.DeviceManufacturer</span>
+                        <span class="me-1">@clientDevice?.Device.DevicePlatform</span>
+                        <span class="me-1">@clientDevice?.Device.DevicePlatformVersion</span>
+                        <span class="me-1">(@clientDevice?.Device.DeviceType)</span>
+
                         @if (clientDevice.IsConnected)
                         {
                             <span style="font-size:25px;color:green">&#9679;</span>

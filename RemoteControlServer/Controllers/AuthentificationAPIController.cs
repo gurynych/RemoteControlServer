@@ -42,12 +42,16 @@ namespace RemoteControlServer.Controllers
         }
         
         [HttpPost("AuthorizeFromDevice")]
-        public async Task<IActionResult> AuthorizeFromDevice([FromForm] string email, [FromForm] string password, [FromForm] string deviceGuid)
+        public async Task<IActionResult> AuthorizeFromDevice([FromForm] string email, 
+            [FromForm] string password, [FromForm] string deviceGuid,
+            [FromForm] string deviceName, [FromForm] string deviceType = null, 
+            [FromForm] string devicePlatform = null, [FromForm] string devicePlatformVersion = null,
+            [FromForm] string deviceManufacturer = null)
         {
             logger.LogInformation("Try authorize {email}", email);
 
-            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(deviceGuid)
-                || password.Length < MinPasswordLength
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(deviceGuid)
+                || password.Length < MinPasswordLength || string.IsNullOrWhiteSpace(deviceName)
                 || !Regex.IsMatch(email, EmailPattern) || !Regex.IsMatch(password, LoginAndPasswordPattern))
             {
                 return BadRequest();
@@ -66,7 +70,7 @@ namespace RemoteControlServer.Controllers
 
             if (device == null)
             {
-                device = new Device(deviceGuid, user);
+                device = new Device(deviceGuid, deviceName, user, deviceType, devicePlatform, devicePlatformVersion, deviceManufacturer);
                 await dbRepository.Devices.AddAsync(device);
             }
 
@@ -89,12 +93,15 @@ namespace RemoteControlServer.Controllers
         
         [HttpPost("RegisterFromDevice")]
         public async Task<IActionResult> RegisterFromDevice([FromForm] string login,
-            [FromForm] string email, [FromForm] string password, [FromForm] string deviceGuid)
+            [FromForm] string email, [FromForm] string password, 
+            [FromForm] string deviceGuid, [FromForm] string deviceName, 
+            [FromForm] string deviceType = null, [FromForm] string devicePlatform = null, 
+            [FromForm] string devicePlatformVersion = null, [FromForm] string deviceManufacturer = null)
         {
             logger.LogInformation("Try registration: {email}", email);
 
-            if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(email)
-                || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(deviceGuid)
+            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(email)
+                || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(deviceGuid)
                 || password.Length < MinPasswordLength || login.Length < MinLoginLength
                 || !Regex.IsMatch(email, EmailPattern) || !Regex.IsMatch(password, LoginAndPasswordPattern)
                 || !Regex.IsMatch(login, LoginAndPasswordPattern))
@@ -123,7 +130,7 @@ namespace RemoteControlServer.Controllers
 
             if (device == null)
             {
-                device = new Device(deviceGuid, user);
+                device = new Device(deviceGuid, deviceName, user, deviceType, devicePlatform, devicePlatformVersion, deviceManufacturer);
                 await dbRepository.Devices.AddAsync(device);
             }
 

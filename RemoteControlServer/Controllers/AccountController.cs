@@ -69,10 +69,11 @@ namespace RemoteControlServer.Controllers
 
                 if (await dbRepository.Users.AddAsync(newUser))
                 {
+                    await dbRepository.Users.SaveChangesAsync();
+                    int id = (await dbRepository.Users.FindByEmailAsync(newUser.Email)).Id;
                     List<Claim> claims = new List<Claim>()
                     {
-                        new Claim(ClaimTypes.Name, newUser.Login),
-                        new Claim(ClaimTypes.Email, newUser.Email)
+                        new Claim(ClaimTypes.Name, id.ToString()),
                     };
                     ClaimsIdentity identity = new ClaimsIdentity(claims, "Cookie");
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);

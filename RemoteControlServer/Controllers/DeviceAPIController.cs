@@ -12,6 +12,7 @@ using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Security.Claims;
+using System.Text.Encodings.Web;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -80,10 +81,9 @@ namespace RemoteControlServer.Controllers
         [HttpGet("GetNestedFilesInfoInDirectory")]
         public async Task<IActionResult> GetNestedFilesInfoInDirectoryForCLient([FromForm] byte[] userToken, [FromForm] int deviceId, [FromForm] string path)
         {
+            logger.LogInformation("GetNestedFilesInfoInDirectoryForCLient");
             if (userToken == null) return BadRequest("Empty user token");
-
             if (deviceId <= 0) return BadRequest("Invalid device id format");
-
             if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
 
             Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
@@ -100,6 +100,7 @@ namespace RemoteControlServer.Controllers
         [HttpGet("DownloadFile")]
         public async Task<IActionResult> DownloadFileForClient([FromForm] byte[] userToken, [FromForm] int deviceId, [FromForm] string path)
         {
+            logger.LogInformation("DownloadFileForClient");
             if (userToken == null) return BadRequest("Empty user token");
             if (deviceId <= 0) return BadRequest("Invalid device id format");
             if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
@@ -114,8 +115,26 @@ namespace RemoteControlServer.Controllers
             return await DownloadFileFromDeviceAsync(connectedDevice, path);
         }
 
-        public async Task<IActionResult> GetConnectedDevice([FromForm] byte[] userToken)
+        [HttpPost("GetConnectedDevice")]
+        public async Task<IActionResult> GetConnectedDevice()
         {
+            logger.LogInformation("GetConnectedDevice");
+            byte[] userToken = null;
+            _ = HttpContext.Request.Body;
+            HttpContext.Request.EnableBuffering();
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                try
+                {
+                    await HttpContext.Request.Body.CopyToAsync(memoryStream);
+                    userToken = memoryStream.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex.Message);
+                }
+            }
+
             if (userToken == null) return BadRequest("Empty user token");
 
             User user = await dbRepository.Users.FindByTokenAsync(userToken);
@@ -124,15 +143,20 @@ namespace RemoteControlServer.Controllers
             var usersConnectedDevices = connectedDevices.GetUserDevices(user.Id).Where(x => x.IsConnected);
             if (!usersConnectedDevices.Any()) return NotFound("Нет подключенных устройств");
 
-            var result = usersConnectedDevices.Select(x => new { x.Device.Id });
-
-            return Ok(new
-            {
-                usersConnectedDevices
+            var result = usersConnectedDevices.Select(x => new 
+            { 
+                x.Device.Id, 
+                x.Device.DeviceName, 
+                x.Device.DeviceType, 
+                x.Device.DeviceManufacturer,  
+                x.Device.DevicePlatform,
+                x.Device.DevicePlatformVersion
             });
+
+            return Ok(result);
         }
 
-        public async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(ConnectedDevice connectedDevice, string path)
+        private async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(ConnectedDevice connectedDevice, string path)
         {
             INetworkMessage message;
             BaseIntent intent;

@@ -26,7 +26,7 @@ namespace RemoteControlServer.BusinessLogic.Database.Models
         {
         }
 
-        public Device(string deviceGuid, User user, string deviceName = null, string deviceType = null, string devicePlatform = null, string devicePlatformVersion = null, string deviceManufacturer = null)
+        public Device(string deviceGuid, string deviceName, User user, string deviceType = null, string devicePlatform = null, string devicePlatformVersion = null, string deviceManufacturer = null)
         {
             User = user;
             UserId = user.Id;

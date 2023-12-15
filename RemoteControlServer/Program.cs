@@ -27,9 +27,9 @@ namespace RemoteControlServer
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-            // Add services to the container.
+            // Add services to the container.            
             builder.Services.AddControllersWithViews();
-            builder.Services.AddMvcCore();
+            builder.Services.AddMvcCore();            
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddDbContext<ApplicationContext>(DbContextOptions => DbContextOptions.UseNpgsql(connectionString)
@@ -61,7 +61,7 @@ namespace RemoteControlServer
 
             // Configure the HTTP request pipeline.            
             app.UseStaticFiles();
-            app.MapControllers();
+            app.MapControllers();           
 
             if (app.Environment.IsDevelopment())
             {
@@ -77,8 +77,8 @@ namespace RemoteControlServer
                 app.UseHsts();
             }
 
-            app.UseMvcWithDefaultRoute();
-            
+            app.UseMvcWithDefaultRoute();           
+
             app.Run();
         }
     }

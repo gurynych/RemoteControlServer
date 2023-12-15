@@ -32,7 +32,7 @@
 
 	<ItemGroup>
 	  <Reference Include="NetworkMessage">
-	    <HintPath>F:\VisualStudiaProjects\RemoteControlCommunicator\NetworkMessage\bin\Debug\net6.0\NetworkMessage.dll</HintPath>
+	    <HintPath>..\..\NetworkMessage\NetworkMessage\bin\Debug\net6.0\NetworkMessage.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 </Project>

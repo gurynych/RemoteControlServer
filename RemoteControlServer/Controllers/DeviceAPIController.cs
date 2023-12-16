@@ -11,7 +11,10 @@ using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using System.Net;
+using System.Reflection.Metadata;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Encodings.Web;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -56,7 +59,8 @@ namespace RemoteControlServer.Controllers
             ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
             if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
-            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(connectedDevice, path);
+            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
+            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(connectedDevice, path, tokenSource.Token);
         }
 
         [Authorize]
@@ -75,69 +79,88 @@ namespace RemoteControlServer.Controllers
             ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
             if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
-            return await DownloadFileFromDeviceAsync(connectedDevice, path);
+            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
+            return await DownloadFileFromDeviceAsync(connectedDevice, path, tokenSource.Token);
         }
 
         [HttpGet("GetNestedFilesInfoInDirectory")]
-        public async Task<IActionResult> GetNestedFilesInfoInDirectoryForCLient([FromForm] byte[] userToken, [FromForm] int deviceId, [FromForm] string path)
-        {
+        public async Task<IActionResult> GetNestedFilesInfoInDirectoryForCLient(string userToken, int deviceId, string path) //[FromForm] int deviceId, [FromForm] string path)
+        {   
             logger.LogInformation("GetNestedFilesInfoInDirectoryForCLient");
-            if (userToken == null) return BadRequest("Empty user token");
-            if (deviceId <= 0) return BadRequest("Invalid device id format");
-            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
-
-            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
-            if (device == null) return NotFound("Device not found");
-
-            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
-
-            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
-            if (connectedDevices == null) return Forbid("Device isn't connected to server");
-
-            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(connectedDevice, path);
-        }
-
-        [HttpGet("DownloadFile")]
-        public async Task<IActionResult> DownloadFileForClient([FromForm] byte[] userToken, [FromForm] int deviceId, [FromForm] string path)
-        {
-            logger.LogInformation("DownloadFileForClient");
-            if (userToken == null) return BadRequest("Empty user token");
-            if (deviceId <= 0) return BadRequest("Invalid device id format");
-            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
-
-            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
-            if (device == null) return NotFound("Device not found");
-            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
-
-            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
-            if (connectedDevices == null) return Forbid("Device isn't connected to server");
-
-            return await DownloadFileFromDeviceAsync(connectedDevice, path);
-        }
-
-        [HttpPost("GetConnectedDevice")]
-        public async Task<IActionResult> GetConnectedDevice()
-        {
-            logger.LogInformation("GetConnectedDevice");
-            byte[] userToken = null;
-            _ = HttpContext.Request.Body;
-            HttpContext.Request.EnableBuffering();
-            using (MemoryStream memoryStream = new MemoryStream())
+            byte[] token;
+            try
             {
-                try
-                {
-                    await HttpContext.Request.Body.CopyToAsync(memoryStream);
-                    userToken = memoryStream.ToArray();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex.Message);
-                }
+                token = Convert.FromBase64String(userToken);
+            }
+            catch
+            {
+                return BadRequest("User token isn't in base64");
             }
 
-            if (userToken == null) return BadRequest("Empty user token");
+            if (token == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
 
-            User user = await dbRepository.Users.FindByTokenAsync(userToken);
+            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+            if (device == null) return NotFound("Device not found");
+
+            if (!device.User.AuthToken.SequenceEqual(token)) return BadRequest("User token is invalid for this device");
+
+            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
+            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(connectedDevice, path, tokenSource.Token);
+            }
+
+        [HttpGet("DownloadFile")]
+        public async Task<IActionResult> DownloadFileForClient(string userToken, int deviceId, string path)
+        {
+            logger.LogInformation("DownloadFileForClient");
+            byte[] token;
+            try
+            {
+                token = Convert.FromBase64String(userToken);
+            }
+            catch
+            {
+                return BadRequest("User token isn't in base64");
+            }
+
+            logger.LogInformation("DownloadFileForClient");
+            if (token == null) return BadRequest("Empty user token"); 
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
+
+            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(token)) return BadRequest("User token is invalid for this device");
+
+            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
+            return await DownloadFileFromDeviceAsync(connectedDevice, path, tokenSource.Token);
+        }
+
+        [HttpGet("GetConnectedDevice")]
+        public async Task<IActionResult> GetConnectedDeviceForClient(string userToken)
+        {
+            logger.LogInformation("GetConnectedDevice"); 
+            byte[] token;
+            try
+            {
+                token = Convert.FromBase64String(userToken);
+            }
+            catch
+            {
+                return BadRequest("User token isn't in base64");
+            }
+
+            if (token == null) return BadRequest("Empty user token");
+
+            User user = await dbRepository.Users.FindByTokenAsync(token);
             if (user == null) return NotFound("Пользователь не найден");
 
             var usersConnectedDevices = connectedDevices.GetUserDevices(user.Id).Where(x => x.IsConnected);
@@ -150,24 +173,24 @@ namespace RemoteControlServer.Controllers
                 x.Device.DeviceType, 
                 x.Device.DeviceManufacturer,  
                 x.Device.DevicePlatform,
-                x.Device.DevicePlatformVersion
+                x.Device.DevicePlatformVersion,
+                x.IsConnected
             });
 
             return Ok(result);
         }
 
-        private async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(ConnectedDevice connectedDevice, string path)
+        private async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(ConnectedDevice connectedDevice, string path, CancellationToken token = default)
         {
             INetworkMessage message;
             BaseIntent intent;
-            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
             try
             {
                 intent = new NestedFilesInfoIntent(path);
                 message = new NetworkMessage.NetworkMessage(intent);
-                await connectedDevice.SendMessageAsync(message, token: tokenSource.Token);
+                await connectedDevice.SendMessageAsync(message, token: token);
                 NestedFilesInfoResult nestedFiles =
-                    await connectedDevice.ReceiveNetworkObjectAsync<NestedFilesInfoResult>(token: tokenSource.Token);
+                    await connectedDevice.ReceiveNetworkObjectAsync<NestedFilesInfoResult>(token: token);
                 if (nestedFiles.ErrorMessage != null)
                 {
                     return StatusCode(StatusCodes.Status406NotAcceptable, nestedFiles.ErrorMessage);
@@ -175,16 +198,14 @@ namespace RemoteControlServer.Controllers
 
                 intent = new NestedDirectoriesInfoIntent(path);
                 message = new NetworkMessage.NetworkMessage(intent);
-                await connectedDevice.SendMessageAsync(message, token: tokenSource.Token);
+                await connectedDevice.SendMessageAsync(message, token: token);
                 NestedDirectoriesInfoResult nestedDirectories =
-                    await connectedDevice.ReceiveNetworkObjectAsync<NestedDirectoriesInfoResult>(token: tokenSource.Token);
+                    await connectedDevice.ReceiveNetworkObjectAsync<NestedDirectoriesInfoResult>(token: token);
                 if (nestedFiles.ErrorMessage != null)
                 {
                     return StatusCode(StatusCodes.Status406NotAcceptable, nestedDirectories.ErrorMessage);
                 }
 
-                _ = nestedFiles.NestedFilesInfo;
-                _ = nestedDirectories.NestedDirectoriesInfo;
                 logger.LogInformation("GetNestedFilesInfoInDirectory success");
                 return Ok(new
                 {
@@ -204,18 +225,17 @@ namespace RemoteControlServer.Controllers
             }
         }
 
-        private async Task<IActionResult> DownloadFileFromDeviceAsync(ConnectedDevice connectedDevice, string path)
+        private async Task<IActionResult> DownloadFileFromDeviceAsync(ConnectedDevice connectedDevice, string path, CancellationToken token = default)
         {
             INetworkMessage message;
             BaseIntent intent;
-            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
             try
             {
                 intent = new DownloadFileIntent(path);
                 message = new NetworkMessage.NetworkMessage(intent);
-                await connectedDevice.SendMessageAsync(message, token: tokenSource.Token);
+                await connectedDevice.SendMessageAsync(message, token: token);
                 DownloadFileResult fileResult =
-                    await connectedDevice.ReceiveNetworkObjectAsync<DownloadFileResult>(token: tokenSource.Token);
+                    await connectedDevice.ReceiveNetworkObjectAsync<DownloadFileResult>(token: token);
                 if (fileResult.ErrorMessage != null)
                 {
                     return StatusCode(StatusCodes.Status406NotAcceptable, fileResult.ErrorMessage);
@@ -247,6 +267,25 @@ namespace RemoteControlServer.Controllers
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ex);
             }
+        }
+
+        private async Task<byte[]> GetAuthTokenFromRequestBodyAsync(CancellationToken token = default)
+        {
+            HttpContext.Request.EnableBuffering();
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                try
+                {
+                    await HttpContext.Request.Body.CopyToAsync(memoryStream, token);
+                    return memoryStream.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex.Message);
+                    return null;
+                }
+            }            
         }
 
         private Task<User> GetUserAsync()

@@ -47,6 +47,7 @@ namespace RemoteControlServer.Controllers
         [HttpPost("GetNestedFilesInfoInDirectory")]
         public async Task<IActionResult> GetNestedFilesInfoInDirectory([FromForm] int deviceId, [FromForm] string path)
         {
+            logger.LogInformation("GetNestedFilesInfoInDirectory for server {time}", DateTime.Now);
             byte[] userToken = (await GetUserAsync()).AuthToken;
             if (userToken == null) return BadRequest("Empty user token");
             if (deviceId <= 0) return BadRequest("Invalid device id format");
@@ -67,6 +68,7 @@ namespace RemoteControlServer.Controllers
         [HttpPost("DownloadFile")]
         public async Task<IActionResult> DownloadFile([FromForm] int deviceId, [FromForm] string path)
         {
+            logger.LogInformation("DownloadFile for server {time}", DateTime.Now);
             byte[] userToken = (await GetUserAsync()).AuthToken;
             if (userToken == null) return BadRequest("Empty user token");
             if (deviceId <= 0) return BadRequest("Invalid device id format");
@@ -86,7 +88,7 @@ namespace RemoteControlServer.Controllers
         [HttpGet("GetNestedFilesInfoInDirectory")]
         public async Task<IActionResult> GetNestedFilesInfoInDirectoryForCLient(string userToken, int deviceId, string path) //[FromForm] int deviceId, [FromForm] string path)
         {   
-            logger.LogInformation("GetNestedFilesInfoInDirectoryForCLient");
+            logger.LogInformation("GetNestedFilesInfoInDirectoryForCLient {time}", DateTime.Now);
             byte[] token;
             try
             {
@@ -117,7 +119,7 @@ namespace RemoteControlServer.Controllers
         [HttpGet("DownloadFile")]
         public async Task<IActionResult> DownloadFileForClient(string userToken, int deviceId, string path)
         {
-            logger.LogInformation("DownloadFileForClient");
+            logger.LogInformation("DownloadFileForClient {time}", DateTime.Now);
             byte[] token;
             try
             {
@@ -128,7 +130,6 @@ namespace RemoteControlServer.Controllers
                 return BadRequest("User token isn't in base64");
             }
 
-            logger.LogInformation("DownloadFileForClient");
             if (token == null) return BadRequest("Empty user token"); 
             if (deviceId <= 0) return BadRequest("Invalid device id format");
             if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
@@ -147,7 +148,7 @@ namespace RemoteControlServer.Controllers
         [HttpGet("GetConnectedDevice")]
         public async Task<IActionResult> GetConnectedDeviceForClient(string userToken)
         {
-            logger.LogInformation("GetConnectedDevice"); 
+            logger.LogInformation("GetConnectedDevice {time}", DateTime.Now); 
             byte[] token;
             try
             {
@@ -166,6 +167,7 @@ namespace RemoteControlServer.Controllers
             var usersConnectedDevices = connectedDevices.GetUserDevices(user.Id).Where(x => x.IsConnected);
             if (!usersConnectedDevices.Any()) return NotFound("Нет подключенных устройств");
 
+            logger.LogInformation("GetConnectedDevice success {time}", DateTime.Now);
             var result = usersConnectedDevices.Select(x => new 
             { 
                 x.Device.Id, 
@@ -206,7 +208,7 @@ namespace RemoteControlServer.Controllers
                     return StatusCode(StatusCodes.Status406NotAcceptable, nestedDirectories.ErrorMessage);
                 }
 
-                logger.LogInformation("GetNestedFilesInfoInDirectory success");
+                logger.LogInformation("GetNestedFilesInfoInDirectory success {time}", DateTime.Now);
                 return Ok(new
                 {
                     nestedFiles.NestedFilesInfo,
@@ -215,12 +217,12 @@ namespace RemoteControlServer.Controllers
             }
             catch (OperationCanceledException)
             {
-                logger.LogInformation("GetNestedFilesInfoInDirectory canceled");
+                logger.LogInformation("GetNestedFilesInfoInDirectory canceled {time}", DateTime.Now);
                 return StatusCode(StatusCodes.Status408RequestTimeout);
             }
             catch (Exception ex)
             {
-                logger.LogInformation("GetNestedFilesInfoInDirectory " + ex.Message);
+                logger.LogInformation("GetNestedFilesInfoInDirectory {time}\n{ex}", DateTime.Now, ex.Message);
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
@@ -257,6 +259,7 @@ namespace RemoteControlServer.Controllers
                     _ => "application/octet-stream"
                 };
 
+                logger.LogInformation("DownloadFile success {time}", DateTime.Now);
                 return File(fileResult.File, contentType, fileName);
             }
             catch (OperationCanceledException)

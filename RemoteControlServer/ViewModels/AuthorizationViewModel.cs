@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 
-namespace RemoteControlServer.Models
+namespace RemoteControlServer.ViewModels
 {
     public class AuthorizationViewModel
     {

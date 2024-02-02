@@ -41,6 +41,16 @@
                 </div>
             </div>
         </div>
+
+        <form id="fileForm" hidden action='/api/deviceapi/DownloadFileForServer' method='post'>
+            <input id="deviceId" name="deviceId" value="@Model.DeviceId"/>
+            <input id="filePath" name="path" />
+        </form>
+
+        <form id="dirForm" hidden action='/api/deviceapi/DownloadDirectoryForServer' method='post'>
+            <input id="deviceId" name="deviceId" value="@Model.DeviceId" />
+            <input id="dirPath" name="path" />
+        </form>
     </div>
 
     @section Scripts
@@ -58,7 +68,7 @@
                     path = "/" + path 
                 }
 
-                var data = new FormData()                                
+                var data = new FormData()
                 data.append("deviceId", "@Model.ConnectedDevice?.Device?.Id")
                 data.append("path", "root" + path)                
                 return data
@@ -69,7 +79,7 @@
                 $("#folder #folderLoader").removeClass("d-none")
                 
                 $.ajax({
-                    url: "/api/deviceapi/GetNestedFilesInfoInDirectory",
+                    url: "/api/deviceapi/GetNestedFilesInfoInDirectoryForServer",
                     method: "post",
                     contentType: false,
                     processData: false,
@@ -97,41 +107,18 @@
                         })                        
 
                         $(".downloadBtn").click(function () {
-                            if ($(this).parent().parent().hasClass("directoryRow")) {
-                                return
-                            }
-                            
                             var curBtn = $(this)
                             curBtn.attr("disabled", "disabled")
                             var name = $($(this).parent().parent().children('td')[0]).text()
-                            var p = path + "/" + name;
-                            console.log(p)
+                            newPath = takePath(path, name)
+                            if ($(this).parent().parent().hasClass("directoryRow")) {
+                                $("#dirPath").val(newPath)
+                                $("#dirForm").submit()
+                                return
+                            }
 
-                            $.ajax({
-                                url: "/api/deviceapi/downloadfile",
-                                contentType: false,
-                                processData: false,
-                                method: "post",
-                                data: GetFormData(p),
-                                xhr: function () {
-                                    var xhr = new XMLHttpRequest();
-                                    xhr.responseType = "blob";
-                                    return xhr;
-                                },
-                                success: function(data, status, xhr) {
-                                    var filename = (xhr.getResponseHeader("content-disposition").split("filename=")[1].split(";")[0])
-                                    var link = $("<a id='downloader'></a>").prop("href", window.URL.createObjectURL(new Blob([data]))).prop("download", filename)
-                                    link.addClass("hidden")
-                                    document.body.appendChild(link[0]).click()
-                                    curBtn.removeAttr("disabled")
-                                },
-                                error: function (jqXHR, exception) {
-                                    console.log(jqXHR)
-                                    console.log(exception)
-                                }
-                            })
-
-                            console.log(path)
+                            $("#filePath").val(newPath)
+                            $("#fileForm").submit()
                         })
                     },
                     error: function (jqXHR, exception) {
@@ -140,6 +127,17 @@
                         $("#folder #folderLoader").addClass("d-none")
                     }
                 });
+            }
+
+            function takePath(oldPath, name)
+            {
+                var newPath = oldPath + name;
+                if (newPath[0] != '/') {
+                    newPath = "/" + newPath
+                }
+
+                newPath = "root" + newPath
+                return newPath;
             }
 
             function fillRow(d)

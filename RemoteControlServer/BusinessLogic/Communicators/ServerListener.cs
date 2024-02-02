@@ -53,14 +53,14 @@ namespace RemoteControlServer.BusinessLogic.Communicators
                         logger.LogInformation("Start connection to {client}", client.Client.RemoteEndPoint);
                         ConnectedDevice newCD =
                             new ConnectedDevice(client, asymmetricCryptographer, symmetricCryptographer, keyStore, dbRepository.Devices);
-                        CancellationTokenSource tokenSource = new CancellationTokenSource(30000);
+                        CancellationTokenSource tokenSource = new CancellationTokenSource(300000);
                         logger.LogInformation("Handshake with {client}", client.Client.RemoteEndPoint);
                         try
                         {
-                            Progress<int> progress = new Progress<int>((int e) => Debug.WriteLine(e));
+                            Progress<long> progress = new Progress<long>((long e) => Debug.WriteLine(e));
                             await newCD.HandshakeAsync(progress, tokenSource.Token);
 
-                            User deviceUser = newCD.Device.User;
+                            User deviceUser = newCD?.Device?.User;
                             if (deviceUser == null || await dbRepository.Users.FindByEmailAsync(deviceUser.Email) == null)
                             {
                                 throw new NullReferenceException(nameof(deviceUser));

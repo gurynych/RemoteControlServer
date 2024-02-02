@@ -14,7 +14,10 @@ namespace RemoteControlServer.BusinessLogic.Communicators
     public class ConnectedDevice : TcpCryptoClientCommunicator
     {
         private readonly IDeviceRepository deviceRepository;
+
         public Device Device { get; private set; }
+
+        //public Queue<>  { get; set; }
 
         /// <exception cref="NotImplementedException"/>
         /// <exception cref="ArgumentNullException"/>
@@ -28,28 +31,30 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             this.deviceRepository = deviceRepository ?? throw new ArgumentNullException(nameof(deviceRepository));
         }
 
-        public override async Task<bool> HandshakeAsync(IProgress<int> progress = null, CancellationToken token = default)
+        public override async Task<bool> HandshakeAsync(IProgress<long> progress = null, CancellationToken token = default)
         {
             INetworkMessage message;
-            PublicKeyInfoResult publicKeyInfo =
-                await ReceiveNetworkObjectAsync<PublicKeyInfoResult>(progress, token).ConfigureAwait(false);
-            if (publicKeyInfo == default) throw new NullReferenceException(nameof(publicKeyInfo));
+            //byte[] publicKey = await ReceiveBytesAsync(progress, token).ConfigureAwait(false);
+            byte[] publicKey;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                await ReceiveStreamAsync(ms, progress, token).ConfigureAwait(false);
+                publicKey = ms.ToArray();
+            }
 
-            byte[] publicKey = await ReceiveBytesAsync(progress, token).ConfigureAwait(false);
             if (publicKey == default || publicKey.Length == 0) throw new NullReferenceException(nameof(publicKey));
 
             SetExternalPublicKey(publicKey);
-
             BaseIntent guidIntent = new GuidIntent();
             message = new NetworkMessage.NetworkMessage(guidIntent);
-            await SendMessageAsync(message, progress, token).ConfigureAwait(false);
+            await SendObjectAsync(guidIntent, progress, token).ConfigureAwait(false);
             DeviceGuidResult guidResult = await ReceiveNetworkObjectAsync<DeviceGuidResult>(progress, token).ConfigureAwait(false);
             if (guidResult == null) throw new NullReferenceException(nameof(guidResult));
             Device = await deviceRepository.FindByGuidAsync(guidResult.Guid);
             IsConnected = true;
             SuccessfulTransferResult transferResult = new SuccessfulTransferResult(true);
             message = new NetworkMessage.NetworkMessage(transferResult);
-            await SendMessageAsync(message, token: token).ConfigureAwait(false);
+            await SendObjectAsync(transferResult, token: token).ConfigureAwait(false);
             return true;
         }
     }

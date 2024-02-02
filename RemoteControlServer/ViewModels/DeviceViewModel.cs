@@ -1,6 +1,6 @@
 ﻿using RemoteControlServer.BusinessLogic.Communicators;
 
-namespace RemoteControlServer.Models
+namespace RemoteControlServer.ViewModels
 {
     public class DeviceViewModel
     {

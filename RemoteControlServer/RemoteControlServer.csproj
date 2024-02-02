@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -31,8 +31,12 @@
   </ItemGroup>
 
 	<ItemGroup>
+	  <Folder Include="wwwroot\temp\" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Reference Include="NetworkMessage">
-	    <HintPath>F:\VisualStudiaProjects\RemoteControlCommunicator\NetworkMessage\bin\Debug\net6.0\NetworkMessage.dll</HintPath>
+	    <HintPath>..\..\RemoteControlCommunicator\NetworkMessage\bin\Debug\net8.0\NetworkMessage.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 </Project>

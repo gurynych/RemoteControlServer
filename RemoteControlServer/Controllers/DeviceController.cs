@@ -5,7 +5,7 @@ using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
-using RemoteControlServer.Models;
+using RemoteControlServer.ViewModels;
 using System.Security.Claims;
 
 namespace RemoteControlServer.Controllers

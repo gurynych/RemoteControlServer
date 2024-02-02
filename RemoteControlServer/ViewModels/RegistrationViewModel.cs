@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 
-namespace RemoteControlServer.Models
+namespace RemoteControlServer.ViewModels
 {
     public class RegistrationViewModel
     {

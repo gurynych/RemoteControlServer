@@ -8,7 +8,7 @@
     <div class="row-md-12">
         @foreach (ConnectedDevice clientDevice in ViewBag.UserDevices)
         {
-            <div class="col-md-6">
+            <div class="col-md-6 mb-4">
                 <div class="card rounded-4">
                     <h5 class="card-header">@clientDevice?.Device.DeviceName</h5>
                     <div class="card-body ms-4">
@@ -31,7 +31,50 @@
                     </div>
                 </div>
             </div>
-
         }
     </div>
 </div>
+
+
+@section Scripts
+{
+    <script>
+        $(document).ready(function ()
+        {
+            $(form).submit()
+
+
+            // form = $("form[action='/api/deviceapi/down', method='get']")
+            // form.addClass("hidden")
+            // input = $("input").attr("name", "id")
+            // input.val(1)
+            // form.append(input);
+            // form.submit()
+
+            //form.appendChild($("input[name='id'], [value='1']"))
+
+            // $.ajax({
+            //     url: "/api/deviceapi/down",
+            //     contentType: false,
+            //     processData: false,
+            //     method: "get",
+            //     xhr: function () {
+            //         var xhr = new XMLHttpRequest();
+            //         xhr.responseType = "blob";
+            //         return xhr;
+            //     },
+            //     success: function (data, status, xhr) {
+            //         var filename = (xhr.getResponseHeader("content-disposition").split("filename=")[1].split(";")[0])
+            //         var link = $("<a id='downloader'></a>").prop("href", window.URL.createObjectURL(new Blob([data]))).prop("download", filename)
+            //         link.addClass("hidden")
+            //         document.body.appendChild(link[0]).click()
+            //         curBtn.removeAttr("disabled")
+            //     },
+            //     error: function (jqXHR, exception) {
+            //         console.log(jqXHR)
+            //         console.log(exception)
+            //     }
+            // })
+        })
+    </script>
+}

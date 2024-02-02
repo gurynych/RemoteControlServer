@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
-using RemoteControlServer.Models;
+using RemoteControlServer.ViewModels;
 using System.Security.Claims;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using NetworkMessage.Cryptography.Hash;

@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Builder;
 using NetworkMessage.Cryptography.AsymmetricCryptography;
 using NetworkMessage.Cryptography.Hash;
 using NetworkMessage.Cryptography.SymmetricCryptography;
-using RemoteControlServer.BusinessLogic;
+using RemoteControlServer.BusinessLogic.Services;
 
 namespace RemoteControlServer
 {

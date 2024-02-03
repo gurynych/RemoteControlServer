@@ -2,7 +2,7 @@
 using RemoteControlServer.BusinessLogic.Database.Models;
 using System.Collections.Concurrent;
 
-namespace RemoteControlServer.BusinessLogic
+namespace RemoteControlServer.BusinessLogic.Services
 {
     public class ConnectedDevicesService
     {
@@ -18,8 +18,8 @@ namespace RemoteControlServer.BusinessLogic
             if (connectedDevice == null) throw new ArgumentNullException(nameof(connectedDevice));
 
             User deviceUser = connectedDevice.Device.User;
-            ConnectedDevice existingCD = 
-                connectedDevices.FirstOrDefault(x => x.Device.DeviceGuid.Equals(connectedDevice.Device.DeviceGuid) 
+            ConnectedDevice existingCD =
+                connectedDevices.FirstOrDefault(x => x.Device.DeviceGuid.Equals(connectedDevice.Device.DeviceGuid)
                     && x.Device.User.Email.Equals(deviceUser.Email, StringComparison.OrdinalIgnoreCase));
 
             if (existingCD != null)

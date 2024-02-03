@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using RemoteControlServer.BusinessLogic.Services;
 using RemoteControlServer.ViewModels;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;

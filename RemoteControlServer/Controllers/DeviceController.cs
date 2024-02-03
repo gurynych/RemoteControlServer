@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NuGet.Protocol.Core.Types;
-using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using RemoteControlServer.BusinessLogic.Services;
 using RemoteControlServer.ViewModels;
 using System.Security.Claims;
 

@@ -7,6 +7,7 @@ using NuGet.Common;
 using NuGet.ContentModel;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -86,8 +87,9 @@ namespace RemoteControlServer.Controllers
                 user.AuthToken = publicKey;
             }            
 
-            await dbRepository.Users.SaveChangesAsync();
-            logger.LogInformation("Success authorize {email}", email);
+            await dbRepository.Users.SaveChangesAsync().ConfigureAwait(false);
+            await dbRepository.Devices.SaveChangesAsync().ConfigureAwait(false);
+            logger.LogInformation("Success authorize {email}", email);            
             return Ok(publicKey);
         }
         
@@ -144,11 +146,24 @@ namespace RemoteControlServer.Controllers
             return Ok(publicKey);
         }
 
-        [HttpGet("AuthorizeWithToken")]
-        public async Task<IActionResult> AuthorizeWithToken([FromForm] byte[] token)
+        [HttpPost("AuthorizeWithToken")]
+        public async Task<IActionResult> AuthorizeWithToken([FromForm] string userToken, 
+            [FromForm] string deviceGuid, [FromForm] string deviceName, 
+            [FromForm] string deviceType = null, [FromForm] string devicePlatform = null, 
+            [FromForm] string devicePlatformVersion = null, [FromForm] string deviceManufacturer = null)
         {
+            byte[] token;
             logger.LogInformation("Try authorize with token");
-            if (!IsCorrectToken(token))
+			try
+			{
+				token = Convert.FromBase64String(WebUtility.UrlDecode(userToken));
+			}
+			catch
+			{
+				return BadRequest("User token isn't in base64");
+			}
+
+			if (!IsCorrectToken(token))
             {
                 return BadRequest();
             }
@@ -157,8 +172,23 @@ namespace RemoteControlServer.Controllers
             if (user == null) return NotFound();
 
             logger.LogInformation("Success authorize {email} with token", user.Email);
-            var requestedUser = new { user.Email, user.Login };
-            return Ok(requestedUser);
+			byte[] publicKey = keyStore.GetPublicKey();
+			return Ok(publicKey);
+        }
+
+        [HttpGet("GetUserByToken")]
+        public async Task<IActionResult> GetUserByToken(string userToken)
+        {
+            byte[] token = Convert.FromBase64String(userToken);
+            logger.LogInformation("Try get user with token");
+            if (!IsCorrectToken(token))
+            {
+                return BadRequest();
+            }
+
+            User user = await dbRepository.Users.FindByTokenAsync(token);
+            if (user == null) return NotFound();
+            return Ok(new { user.Email, user.Login });
         }
 
         private bool IsCorrectToken(byte[] token)

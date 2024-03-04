@@ -14,9 +14,22 @@ html {
 }
 
 body {
-    background-image: url("/images/account_backgr.JPG");
-    background-size: contain;
+    font-family: Inter;
 }
-.gradient-element {
-    background:linear-gradient(to bottom, rgba(85, 66, 99, 0.5), rgba(165, 130, 190, 0.35), rgba(222, 207, 255, 0.25));
+
+.custom-header{
+  font-weight: bold;
+  font-size: 32px;
+  line-height: 48px;
+}
+
+@font-face{
+  font-family: Inter;
+  src: url('/fonts/inter/Inter-Regular.ttf');
+}
+
+@font-face{
+  font-family: Inter;
+  src: url('/fonts/Inter/Inter-Bold.ttf');
+  font-weight: bold;
 }

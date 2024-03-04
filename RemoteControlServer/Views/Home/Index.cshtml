@@ -1,37 +1,165 @@
-﻿@using RemoteControlServer.BusinessLogic.Communicators
-@model DeviceViewModel
-@{
+﻿@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="container">
-    <div class="row-md-12">
-        @foreach (ConnectedDevice clientDevice in ViewBag.UserDevices)
-        {
-            <div class="col-md-6">
-                <div class="card rounded-4">
-                    <h5 class="card-header">@clientDevice?.Device.DeviceName</h5>
-                    <div class="card-body ms-4">
-                        <span class="me-1">@clientDevice?.Device.DeviceManufacturer</span>
-                        <span class="me-1">@clientDevice?.Device.DevicePlatform</span>
-                        <span class="me-1">@clientDevice?.Device.DevicePlatformVersion</span>
-                        <span class="me-1">(@clientDevice?.Device.DeviceType)</span>
+<div class="container-fluid">
+	<div class="container" style="background: url('img/indexBack1.png') no-repeat; height: 100vh;">
+		<div class="row pt-5">
+			<div class="col-md-5 offset-md-7 text-center">
+				<h2 class="custom-header text-white">Дистанционное управление данными вашего компьютера</h2>
+				<button class="btn btn-primary">Начать работу</button>
+			</div>
+		</div>
 
-                        @if (clientDevice.IsConnected)
-                        {
-                            <span style="font-size:25px;color:green">&#9679;</span>
-                        }
-                        else
-                        {
-                            <span style="font-size:25px;color:red">&#9679;</span>
-                        }
+		<div class="row h-50 d-md-block d-none"></div>
 
-                        <br/>
-                        <a class="btn btn-primary mt-3" href="/device/@clientDevice?.Device.Id/">Команды</a>
-                    </div>
-                </div>
-            </div>
+		<div class="row">
+			<div class="col-md-5">
+				<span class="text-white">Попробуйте наше инновационное программное решение, которое предоставляет удаленный доступ к вашему ПК, обеспечивая высокую скорость и безопасность при передаче данных. </span>
+			</div>
+		</div>
+	</div>
 
-        }
-    </div>
+	<div class="container mt-4 pb-4">
+		<h2 class="custom-header text-white">Уникальные возможности</h2>
+
+		<div class="row">
+			<div class="col-md-3">
+				<div class="card">
+					<img src="img/indexCard1.png" alt="" class="card-img-top">
+					<div class="card-body text-center">
+						<span><b>Скачивание файлов</b></span><br>
+						<p class="mt-2">Получите необходимые данные, находясь в дали от компьютера</p>
+						<button class="btn btn-outline-primary mt-2">Попробовать</button>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3 offset-md-1">
+				<div class="card">
+					<img src="img/indexCard2.png" alt="" class="card-img-top">
+					<div class="card-body text-center">
+						<span><b>Мониторинг ресурсов</b></span><br>
+						<p class="mt-2">Отслеживайте состояние свое компьютера дистанционно</p>
+						<button class="btn btn-outline-primary mt-2">Попробовать</button>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3 offset-md-1">
+				<div class="card">
+					<img src="img/indexCard3.png" alt="" class="card-img-top">
+					<div class="card-body text-center">
+						<span><b>Запуск программ</b></span><br>
+						<p class="mt-2">Запустите необходимые программы на ПК в любое время</p>
+						<button class="btn btn-outline-primary mt-2">Попробовать</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="container-fluid bg-white">
+	<div class="container pt-4 pb-4">
+		<div class="row">
+			<div class="col-md-6">
+				<h2 class="custom-header">Начало работы</h2>
+				<span>1. Установите наше приложение на ваше устройство</span>
+
+				<div class="card mb-3 mt-3">
+					<div class="card-body">
+						<div class="row">
+							<div class="col-auto">
+								<span class="badge rounded-circle text-bg-light">
+									<i class="fa fa-television" style="font-size: 30px; line-height: 40px;"></i>
+								</span>
+							</div>
+
+							<div class="col">
+								<span><b>Версия для ПК</b></span>
+								<p>Взаимодействие с ПК из любой точки мира</p>
+							</div>
+
+							<div class="col-auto align-self-center">
+								<button class="btn btn-primary">Загрузить</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="card mb-3">
+					<div class="card-body">
+						<div class="row">
+							<div class="col-auto">
+								<span class="badge rounded-circle text-bg-light">
+									<i class="fa fa-mobile" style="font-size: 40px; width: 40px;"></i>
+								</span>
+							</div>
+
+							<div class="col">
+								<span><b>Мобильное приложение</b></span>
+								<p>Удобный доступ к данным вашего телефона</p>
+							</div>
+
+							<div class="col-auto align-self-center">
+								<button class="btn btn-primary">Загрузить</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<span>2.  Зарегистрируйтесь или войдите в аккаунт в приложении и на нашем сайте</span><br>
+				<button class="btn btn-primary mt-2 mb-2">Перейти к регистрации</button><br>
+
+				<span class="mt-2">3.  Готово! Используйте все возможности нашей программы</span>
+			</div>
+			<div class="col-md-6 text-center">
+				<img src="img/indexBack2.png" alt="" class="img-fluid">
+			</div>
+		</div>
+
+	</div>
+</div>
+
+<div class="container-fluid d-flex" style="background: url('img/indexBack3.png') no-repeat; background-size: cover; height: 100vh">
+	<div class="container align-self-center">
+		<div class="row">
+			<div class="col-md-4 offset-md-2 text-white">
+				<h2 class="custom-header">Свяжитесь с нами</h2>
+				<p>Остались вопросы или нужна помощь?</p>
+
+				<form action="" method="post">
+					<div class="mb-3">
+						<label for="name" class="form-label">Имя</label>
+						<input type="text" class="form-control" id="name" placeholder="Введите ваше имя">
+					</div>
+
+					<div class="mb-3">
+						<label for="email" class="form-label">Email</label>
+						<input type="email" class="form-control" id="email" placeholder="your@email.com">
+					</div>
+
+					<div class="mb-3">
+						<label for="question" class="form-label">Вопрос</label>
+						<textarea name="question" id="question" cols="30" rows="2" class="form-control" placeholder="Введите ваш запрос"></textarea>
+					</div>
+
+					<div class="w-100 d-flex justify-content-end">
+						<input type="submit" class="btn btn-secondary" value="Отправить">
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="container-fluid">
+	<footer class="text-center">
+		<div class="d-flex justify-content-center align-items-center">
+			<button class="btn m-2"><i class="fa fa-github"></i></button>
+			<button class="btn m-2"><i class="fa fa-vk"></i></button>
+			<button class="btn m-2"><i class="fa fa-telegram"></i></button>
+		</div>
+
+		<span class="text-light">© Remote Control 2024, gurynych, ksenon</span>
+	</footer>
 </div>

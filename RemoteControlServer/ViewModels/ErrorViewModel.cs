@@ -1,4 +1,4 @@
-namespace RemoteControlServer.Models
+namespace RemoteControlServer.ViewModels
 {
     public class ErrorViewModel
     {

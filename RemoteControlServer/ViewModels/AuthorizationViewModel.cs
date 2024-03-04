@@ -1,12 +1,13 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 
-namespace RemoteControlServer.Models
+namespace RemoteControlServer.ViewModels
 {
     public class AuthorizationViewModel
     {
 
-        [Required(ErrorMessage = "Поле \"почта\" не может быть пустым")]
+        [EmailAddress(ErrorMessage = "Неверный email адрес")]
+        [Required(ErrorMessage = "Поле \"почта\" не может быть пустым")]        
         [Display(Name = "Email")]
         public string Email { get; set; }
 
@@ -15,5 +16,6 @@ namespace RemoteControlServer.Models
         [DataType(DataType.Password)]
         public string Password { get; set; }
 
+        public string ReturnUrl { get; set; }
     }
 }

@@ -1,22 +1,24 @@
 ﻿using RemoteControlServer.BusinessLogic.Communicators;
+using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
+using RemoteControlServer.BusinessLogic.Models;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Collections.Concurrent;
 
 namespace RemoteControlServer.BusinessLogic
 {
     public class ConnectedDevicesService
     {
-        private List<ConnectedDevice> connectedDevices;
+        private List<ConnectedDevice> connectedDevices;        
 
         public ConnectedDevicesService()
         {
-            connectedDevices = new List<ConnectedDevice>();
-        }
+            connectedDevices = new List<ConnectedDevice>();			
+		}
 
-        public void AddOrReplaceConnectedDevices(ConnectedDevice connectedDevice)
+        public void AddOrReplaceConnectedDevice(ConnectedDevice connectedDevice)
         {
-            if (connectedDevice == null) throw new ArgumentNullException(nameof(connectedDevice));
-
+            ArgumentNullException.ThrowIfNull(connectedDevice);
             User deviceUser = connectedDevice.Device.User;
             ConnectedDevice existingCD = 
                 connectedDevices.FirstOrDefault(x => x.Device.DeviceGuid.Equals(connectedDevice.Device.DeviceGuid) 
@@ -28,16 +30,11 @@ namespace RemoteControlServer.BusinessLogic
             }
 
             connectedDevices.Add(connectedDevice);
-        }
-
-        public List<ConnectedDevice> GetUserDevices(int userId)
-        {
-            return connectedDevices.FindAll(x => x.Device.UserId == userId);
-        }
+        }        
 
         public ConnectedDevice GetConnectedDeviceByDeviceId(int deviceId)
         {
-            return connectedDevices.FirstOrDefault(x => x.Device.Id == deviceId);
+            return connectedDevices.Find(x => x.Device.Id == deviceId);
         }
     }
 }

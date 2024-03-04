@@ -1,0 +1,146 @@
+﻿@using System.Security.Cryptography
+@using RemoteControlServer.BusinessLogic.Communicators
+@using RemoteControlServer.BusinessLogic.Models
+@model UserDevice
+@{
+	ViewData["Title"] = "Device Page";
+	ViewData["white"] = true;
+	string faDeviceType = Model.DeviceType switch
+	{
+		"Desktop" or "PC" => "fa fa-desktop",
+		"Phone" => "fa fa-mobile",
+		"Tablet" => "fa fa-tablet",
+		_ => "fa fa-question"
+	};
+
+	string faOS = Model.DevicePlatform switch
+	{
+		"Windows" => "fa fa-windows",
+		"Android" => "fa fa-android",
+		"iOS" or "macOS" => "fa fa-apple",
+		_ => "fa fa-question"
+	};
+}
+
+<div class="container-fluid bg-white">
+	<div class="container pt-5">
+		<div class="row">
+			<div class="col-md-5">
+				<div class="row">
+					<div class="col-auto">						
+						<span class="badge rounded-circle p-4" style="color: black;">							
+							<i class="@faDeviceType" style="font-size: 80px; line-height: 80px;"></i>
+						</span>
+					</div>
+
+					<div class="col">
+						<h2 class="custom-header">Имя устройства: @Model.DeviceName</h2>
+						<p class="text-muted">Статус подключения: @(Model.IsConnected ? "подключено" : "не подключено")</p>
+
+						<span class="text-muted"><i class="@faDeviceType text-black"></i> Тип устройства: @Model.DeviceType</span><br>
+						<span class="text-muted"><i class="@faOS text-black">
+							</i> Операционная система: @($"{Model.DevicePlatform} {Model.DevicePlatformVersion}")
+						</span>
+					</div>
+				</div>
+
+				<hr class="border border-1 border-black mt-4">
+				<div class="row">
+					<h2 class="custom-header">Мониторинг ресурсов</h2>
+					<br />
+					
+					<div class="container">
+						<p id="amountOfOccupiedRAMInfo">Занятая оперативная память: </p>
+						<div class="progress" style="height:1.5rem">
+							<div class="progress-bar bg-dark" id="amountOfOccupiedRAMProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" style="font-size:16px"></div>
+						</div>
+						<p id="batteryChargeInfo" class="mt-3">Заряд батареи: </p>
+						<div class="progress" style="height:1.5rem">
+							<div class="progress-bar bg-dark" id="batteryChargeProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" style="font-size:16px"></div>
+						</div>
+						<p id="cpuUsageInfo" class="mt-3">Процент загрузки ЦПУ: </p>
+						<div class="progress" style="height:1.5rem">
+							<div class="progress-bar bg-dark" id="cpuUsageProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" style="font-size:16px"></div>
+						</div>
+					</div>
+				</div>
+				
+			</div>
+			<div class="col-md-7">
+				<div class="d-flex h-100">
+					<div class="vr border border-1 border-black h-100"></div>
+					<div class="mx-4">
+						<h2 class="custom-header">Параметры системы</h2>
+
+						<span id="amountRAMinfo" class="text-muted"><i class="fa fa-hdd-o text-black"></i> Количество ОЗУ: </span>
+						<br>
+						<br>
+
+						<h2 class="custom-header mt-4">Команды</h2>
+						<div class="row">
+							<div class="col"><a class="btn btn-dark" href="/devicefolder/@Model.DeviceId/">Проводник</a></div>
+							<div class="col"><button id="screenshotBtn" class="btn btn-dark">Скриншот</button></div>
+							<div class="col"><button class="btn btn-dark">Что-то</button></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<form hidden action='/api/deviceapi/GetScreenshotForServer' method="post" id="formDev">
+		<input name="deviceId" id="deviceId"/>
+	</form>
+</div>
+
+@section Scripts{
+	<script>
+		$(document).ready(function () {
+			$.ajax({
+				url: "/api/deviceapi/GetDeviceStatusesForServer",
+				method: "post",
+				contentType: false,
+				processData: false,
+				data: GetFormData(),
+				success: function (data) {
+					console.log(data)
+					$('#amountRAMinfo').append(data.amountOfRAM + "ГБ")
+					var occupiedRAMpercent = Math.round(data.amountOfOccupiedRAM / data.amountOfRAM * 100)
+					var ramProgress = $('#amountOfOccupiedRAMProgress')
+					ramProgress.css('width', occupiedRAMpercent + '%')
+					ramProgress.attr('aria-valuenow', occupiedRAMpercent).prop('aria-valuenow', occupiedRAMpercent)
+					ramProgress.text(occupiedRAMpercent + '%')
+					$('#amountOfOccupiedRAMInfo').append(data.amountOfOccupiedRAM + 'ГБ')
+
+					var percentCharge = data.butteryChargePercent
+					var batteryProgress = $('#batteryChargeProgress')
+					batteryProgress.css('width', percentCharge + '%')
+					batteryProgress.attr('aria-valuenow', percentCharge).prop('aria-valuenow', percentCharge)
+					batteryProgress.text(percentCharge + '%')
+					$('#batteryChargeInfo').append(percentCharge + '%')
+
+					var percentCPU = data.percentageOfCPUUsage
+					var percentCPUProgress = $('#cpuUsageProgress')
+					percentCPUProgress.css('width', percentCPU + '%')
+					percentCPUProgress.attr('aria-valuenow', percentCPU).prop('aria-valuenow', percentCPU)
+					percentCPUProgress.text(percentCPU  + '%')
+					$('#cpuUsageInfo').append(percentCPU + '%')
+				},
+				error: function (data) {
+					console.log(data)
+				}
+			})			
+		})
+
+		$('#screenshotBtn').click(function () {
+			$("#deviceId").val(@Model.DeviceId)
+			$("#formDev").submit()
+		})
+
+		function GetFormData() {		
+			var data = new FormData()
+			data.append("deviceId", "@Model.DeviceId")			
+			return data
+		}
+	</script>
+}

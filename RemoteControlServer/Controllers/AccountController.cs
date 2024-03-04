@@ -1,88 +1,89 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using RemoteControlServer.BusinessLogic.Repository.DbRepository;
-using RemoteControlServer.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using RemoteControlServer.ViewModels;
 using System.Security.Claims;
 using RemoteControlServer.BusinessLogic.Database.Models;
-using NetworkMessage.Cryptography.Hash;
+using Microsoft.AspNetCore.Authorization;
+using RemoteControlServer.BusinessLogic.Services;
 
 namespace RemoteControlServer.Controllers
 {
-    [AllowAnonymous]
-    public class AccountController : Controller
-    {
-        private IDbRepository dbRepository;
+	[AllowAnonymous]
+	public class AccountController : Controller
+	{
+		private const string AuthenticationType = "Cookie";		
+		private readonly AuthenticationService authenticationService;
 
-        private IHashCreater hashCreater;
+		public AccountController(AuthenticationService authenticationService)
+		{
+			this.authenticationService = authenticationService;
+		}
 
-        public AccountController(IDbRepository dbRepository,IHashCreater hashCreater)
-        {
-            this.dbRepository = dbRepository;
-            this.hashCreater = hashCreater;
-        }
-           
+		[HttpGet]
+		public IActionResult Registration()
+		{
+			return View();
+		}
 
-        [HttpGet]
-        public IActionResult Authorization()
-        {
-            return View();
-        }
+		[HttpGet]
+		public IActionResult Authorization(string returnUrl = null)
+		{
+			return View(new AuthorizationViewModel { ReturnUrl = returnUrl });
+		}
 
-        [HttpGet]
-        public IActionResult Registration()
-        {
-            return View();
-        }
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Authorization(AuthorizationViewModel model)
+		{
+			if (!ModelState.IsValid)
+			{
+				return View(model);
+			}
 
-        [HttpPost]
-        public async Task<IActionResult> Authorization([FromForm] AuthorizationViewModel authorizationViewModel)
-        {
-            if (ModelState.IsValid)
-            {
-                User currentUser = await dbRepository.Users.FindByEmailAsync(authorizationViewModel.Email);
-                if (currentUser is not null && 
-                    (currentUser.PasswordHash.Equals(hashCreater.Hash(authorizationViewModel.Password, currentUser.Salt))))
-                {
-                    List<Claim> claims = new List<Claim>()
-                    {
-                        new Claim(ClaimTypes.Name, currentUser.Id.ToString()),
-                    };
-                    ClaimsIdentity identity = new ClaimsIdentity(claims, "Cookie");
-                    ClaimsPrincipal principal = new ClaimsPrincipal(identity);
-                    await HttpContext.SignInAsync(principal);
-                    return RedirectToAction("Index", "Home");
-                }
-                else ModelState.AddModelError(string.Empty, "Такого пользователя не существует," +
-                    " проверьте введенные данные");
-            }
-            return View(authorizationViewModel);
-        }
+			User currentUser = await authenticationService.AuthorizeAsync(model.Email, model.Password).ConfigureAwait(false);
+			if (currentUser == null)
+			{
+				ModelState.AddModelError(string.Empty, "Неверная почта или пароль");
+				return View(model);
+			}
 
-        [HttpPost]
-        public async Task<IActionResult> Registration([FromForm] RegistrationViewModel registrationViewModel)
-        {
-            if (ModelState.IsValid)
-            {
-                User newUser = new User(registrationViewModel.Login, registrationViewModel.Email,
-                    registrationViewModel.Password);
+			List<Claim> claims = new List<Claim>()
+			{
+				new Claim(ClaimTypes.Name, currentUser.Id.ToString())
+			};
 
-                if (await dbRepository.Users.AddAsync(newUser))
-                {
-                    await dbRepository.Users.SaveChangesAsync();
-                    int id = (await dbRepository.Users.FindByEmailAsync(newUser.Email)).Id;
-                    List<Claim> claims = new List<Claim>()
-                    {
-                        new Claim(ClaimTypes.Name, id.ToString()),
-                    };
-                    ClaimsIdentity identity = new ClaimsIdentity(claims, "Cookie");
-                    ClaimsPrincipal principal = new ClaimsPrincipal(identity);
-                    await HttpContext.SignInAsync(principal);
-                    return RedirectToAction("Index", "Home");
-                }
-                else ModelState.AddModelError(string.Empty, "Такой пользователь уже существует");
-            }
-            return View(registrationViewModel);
-        }
-    }
+			await authenticationService.RemebmerMeAsync(HttpContext, claims, AuthenticationType).ConfigureAwait(false);
+			if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+			{
+				return Redirect(model.ReturnUrl);
+			}
+
+			return RedirectToAction("Index", "Home");
+		}
+
+		[HttpPost]
+		public async Task<IActionResult> Registration([FromForm] RegistrationViewModel registrationViewModel)
+		{
+			if (ModelState.IsValid)
+			{
+				return View(registrationViewModel);
+			}
+
+			User newUser = await authenticationService
+				.RegisterAsync(registrationViewModel.Login, registrationViewModel.Email, registrationViewModel.Password)
+				.ConfigureAwait(false);
+			if (newUser == null)
+			{
+				ModelState.AddModelError(string.Empty, "Такой пользователь уже существует");
+				return View(registrationViewModel);
+			}
+
+			List<Claim> claims = new List<Claim>()
+			{
+				new Claim(ClaimTypes.Name, newUser.Id.ToString()),
+			};
+
+			await authenticationService.RemebmerMeAsync(HttpContext, claims, AuthenticationType).ConfigureAwait(false);
+			return RedirectToAction("Index", "Home");
+		}
+	}
 }

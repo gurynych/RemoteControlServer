@@ -3,14 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using RemoteControlServer.BusinessLogic;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
-using RemoteControlServer.Models;
+using RemoteControlServer.ViewModels;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Security.Claims;
 
 namespace RemoteControlServer.Controllers
 {
-    [Authorize]
+    [AllowAnonymous]
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> logger;
@@ -25,11 +25,11 @@ namespace RemoteControlServer.Controllers
             this.dbRepository = dbRepository;
         }
 
-        
-        public async Task<IActionResult> Index()
+        [Route("")]
+        public IActionResult Index()
         {
-            User user = await GetUserAsync();
-            ViewBag.UserDevices = connectedDevices.GetUserDevices(user.Id);
+            //User user = await GetUserAsync();
+            //ViewBag.UserDevices = connectedDevices.GetUserDevices(user.Id);
             return View();
         }
 

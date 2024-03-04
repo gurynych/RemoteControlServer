@@ -1,0 +1,66 @@
+﻿@using System.Security.Cryptography
+@using RemoteControlServer.BusinessLogic.Communicators
+@using RemoteControlServer.BusinessLogic.Models
+@model List<UserDevice>
+@{
+    ViewData["Title"] = "Devices Page";
+}
+
+<div class="container text-white mt-4">
+    <h2 class="custom-header">Ваши устройства</h2>
+    <div class="row">
+        @for (int i = 0; i < Model.Count; i++)        
+        {
+            UserDevice userDevice = Model[i];
+            <div class="col-md-6">
+                <div class="card mb-3 mt-3 ">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-auto">
+                                <span class="badge rounded-circle text-bg-light">
+                                    <i class="fa fa-television" style="font-size: 30px; line-height: 40px;"></i>
+                                </span>
+                            </div>                            
+
+                            <div class="col">
+                                <span><b>@userDevice.DeviceName</b></span>                                
+                                <p>Статус подключения: @(userDevice.IsConnected ? "подключено" : "не подключено")</p>
+                            </div>
+
+                            <div class="col-auto align-self-center">
+                                <a class="btn btn-outline-primary rounded-4" href="/device/@userDevice.DeviceId">Подробнее</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <span class="position-absolute top-0 start-100 translate-middle p-2 @(userDevice.IsConnected ? "bg-success" : "bg-danger") border border-light rounded-circle">
+                        <span class="visually-hidden"></span>
+                    </span>
+                </div>
+            </div>
+
+            if ((i + 1) % 2 == 0)
+            {
+                <hr class="border border-white border-1">
+            }
+        }
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-3 mt-3 bg-transparent border border-light text-white">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col align-self-center">
+                                <span>Добавить новое устройство</span>
+                            </div>
+
+                            <div class="col-auto align-self-center">
+                                <button class="btn btn-secondary rounded-4"><i class="fa fa-plus fs-4"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Database;
+using RemoteControlServer.BusinessLogic.Models;
 
 namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
@@ -15,7 +16,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             this.context = context;
         }
 
-        public async Task<bool> AddAsync(Device item)
+        public async Task<bool> AddAsync(Device item, CancellationToken token = default)
         { 
             try
             {                 
@@ -34,7 +35,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id, CancellationToken token = default)
         {           
             try
             {
@@ -55,7 +56,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<Device> FindByGuidAsync(string deviceGuid)
+        public async Task<Device> FindByGuidAsync(string deviceGuid, CancellationToken token = default)
         {
             try
             {                 
@@ -69,11 +70,11 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public Task<Device> FindByIdAsync(int id)
+        public Task<Device> FindByIdAsync(int id, CancellationToken token = default)
         {
             try
             {
-                return context.Devices.Include(x => x.User).FirstOrDefaultAsync();
+                return context.Devices.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id);
             }
             catch (Exception ex)
             {
@@ -82,7 +83,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }        
 
-        public async Task<IEnumerable<Device>> GetAllAsync()
+        public async Task<IEnumerable<Device>> GetAllAsync(CancellationToken token = default)
         {
             try
             {
@@ -94,9 +95,9 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
                 logger.LogError(ex, null, null);
                 return default;
             }
-        }
+        }        
 
-        public async Task<bool> SaveChangesAsync()
+        public async Task<bool> SaveChangesAsync(CancellationToken token = default)
         {
             try
             {
@@ -111,7 +112,7 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
             }
         }
 
-        public async Task<bool> UpdateAsync(Device item)
+        public async Task<bool> UpdateAsync(Device item, CancellationToken token = default)
         {
             try
             {

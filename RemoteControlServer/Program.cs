@@ -1,26 +1,19 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using NetworkMessage.Cryptography;
 using NetworkMessage.Cryptography.KeyStore;
 using RemoteControlServer.BusinessLogic.Communicators;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.KeyStore;
-using RemoteControlServer.BusinessLogic.Database.Models;
-using RemoteControlServer.BusinessLogic.Repository;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
-using System.Text;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Builder;
 using NetworkMessage.Cryptography.AsymmetricCryptography;
 using NetworkMessage.Cryptography.Hash;
 using NetworkMessage.Cryptography.SymmetricCryptography;
 using RemoteControlServer.BusinessLogic;
+using RemoteControlServer.BusinessLogic.Services;
 
 namespace RemoteControlServer
 {
-    public class Program
+	public class Program
     {
         public static void Main(string[] args)
         {
@@ -45,12 +38,15 @@ namespace RemoteControlServer
             builder.Services.AddSingleton<IAsymmetricCryptographer, RSACryptographer>();
             builder.Services.AddSingleton<ISymmetricCryptographer, AESCryptographer>();
             builder.Services.AddSingleton<IHashCreater, BCryptCreater>();
+            builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
+            builder.Services.AddSingleton<ConnectedDevicesService>();
             builder.Services.AddScoped<IUserRepository, UserDbRepository>();
             builder.Services.AddScoped<IDeviceRepository, DeviceDbRepository>();
             builder.Services.AddScoped<IDbRepository, DbRepository>();
-            builder.Services.AddSingleton<AsymmetricKeyStoreBase, ServerKeysStore>();
-            builder.Services.AddSingleton<ConnectedDevicesService>();
-            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            builder.Services.AddScoped<UserDevicesService>();
+            builder.Services.AddTransient<AuthenticationService>();
+			builder.Services.AddTransient<CommandsService>();
+			builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options => options.LoginPath = "/Account/Authorization");
             builder.Services.AddHostedService<ServerListener>();
             builder.Services.AddAuthorization();

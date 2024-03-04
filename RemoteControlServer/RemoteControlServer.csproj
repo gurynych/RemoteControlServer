@@ -12,6 +12,13 @@
     </None>
 </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="wwwroot\temp\**" />
+    <Content Remove="wwwroot\temp\**" />
+    <EmbeddedResource Remove="wwwroot\temp\**" />
+    <None Remove="wwwroot\temp\**" />
+  </ItemGroup>
+
 	<ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.22" />

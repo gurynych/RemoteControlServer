@@ -26,5 +26,7 @@ namespace RemoteControlServer.ViewModels
         [Display(Name = "Подтвердить пароль")]
         [Compare("Password",ErrorMessage ="Пароли не соответствуют")]
         public string ConfirmPassword { get; set; }
-    }
+
+		public string ReturnUrl { get; set; }
+	}
 }

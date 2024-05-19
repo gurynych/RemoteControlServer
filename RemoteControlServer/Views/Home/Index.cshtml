@@ -7,7 +7,7 @@
 		<div class="row pt-5">
 			<div class="col-md-5 offset-md-7 text-center">
 				<h2 class="custom-header text-white">Дистанционное управление данными вашего компьютера</h2>
-				<button class="btn btn-primary">Начать работу</button>
+				<button id="startButton" class="btn btn-dark">Начать работу</button>
 			</div>
 		</div>
 
@@ -30,7 +30,7 @@
 					<div class="card-body text-center">
 						<span><b>Скачивание файлов</b></span><br>
 						<p class="mt-2">Получите необходимые данные, находясь в дали от компьютера</p>
-						<button class="btn btn-outline-primary mt-2">Попробовать</button>
+						<button class="btn btn-outline-dark mt-2">Попробовать</button>
 					</div>
 				</div>
 			</div>
@@ -40,7 +40,7 @@
 					<div class="card-body text-center">
 						<span><b>Мониторинг ресурсов</b></span><br>
 						<p class="mt-2">Отслеживайте состояние свое компьютера дистанционно</p>
-						<button class="btn btn-outline-primary mt-2">Попробовать</button>
+						<button class="btn btn-outline-dark mt-2">Попробовать</button>
 					</div>
 				</div>
 			</div>
@@ -50,7 +50,7 @@
 					<div class="card-body text-center">
 						<span><b>Запуск программ</b></span><br>
 						<p class="mt-2">Запустите необходимые программы на ПК в любое время</p>
-						<button class="btn btn-outline-primary mt-2">Попробовать</button>
+						<button class="btn btn-outline-dark mt-2">Попробовать</button>
 					</div>
 				</div>
 			</div>
@@ -62,7 +62,7 @@
 	<div class="container pt-4 pb-4">
 		<div class="row">
 			<div class="col-md-6">
-				<h2 class="custom-header">Начало работы</h2>
+				<h2 id="startH2" class="custom-header">Начало работы</h2>
 				<span>1. Установите наше приложение на ваше устройство</span>
 
 				<div class="card mb-3 mt-3">
@@ -80,7 +80,7 @@
 							</div>
 
 							<div class="col-auto align-self-center">
-								<button class="btn btn-primary">Загрузить</button>
+								<button class="btn btn-dark">Загрузить</button>
 							</div>
 						</div>
 					</div>
@@ -101,14 +101,14 @@
 							</div>
 
 							<div class="col-auto align-self-center">
-								<button class="btn btn-primary">Загрузить</button>
+								<button class="btn btn-dark">Загрузить</button>
 							</div>
 						</div>
 					</div>
 				</div>
 
 				<span>2.  Зарегистрируйтесь или войдите в аккаунт в приложении и на нашем сайте</span><br>
-				<button class="btn btn-primary mt-2 mb-2">Перейти к регистрации</button><br>
+				<button class="btn btn-dark mt-2 mb-2">Перейти к регистрации</button><br>
 
 				<span class="mt-2">3.  Готово! Используйте все возможности нашей программы</span>
 			</div>
@@ -163,3 +163,15 @@
 		<span class="text-light">© Remote Control 2024, gurynych, ksenon</span>
 	</footer>
 </div>
+
+@section Scripts
+{
+	<script>
+		$("#startButton").click(StartScroll)
+		function StartScroll() {
+			console.log('click')
+			$("#startH2").get(0).scrollIntoView()			
+		}
+			
+	</script>
+}

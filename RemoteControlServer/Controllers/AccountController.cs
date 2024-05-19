@@ -61,20 +61,21 @@ namespace RemoteControlServer.Controllers
 		}
 
 		[HttpPost]
-		public async Task<IActionResult> Registration([FromForm] RegistrationViewModel registrationViewModel)
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Registration(RegistrationViewModel model)
 		{
 			if (ModelState.IsValid)
 			{
-				return View(registrationViewModel);
+				return View(model);
 			}
 
 			User newUser = await authenticationService
-				.RegisterAsync(registrationViewModel.Login, registrationViewModel.Email, registrationViewModel.Password)
+				.RegisterAsync(model.Login, model.Email, model.Password)
 				.ConfigureAwait(false);
 			if (newUser == null)
 			{
 				ModelState.AddModelError(string.Empty, "Такой пользователь уже существует");
-				return View(registrationViewModel);
+				return View(model);
 			}
 
 			List<Claim> claims = new List<Claim>()
@@ -83,6 +84,11 @@ namespace RemoteControlServer.Controllers
 			};
 
 			await authenticationService.RemebmerMeAsync(HttpContext, claims, AuthenticationType).ConfigureAwait(false);
+			/*if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+			{
+				return Redirect(model.ReturnUrl);
+			}*/
+
 			return RedirectToAction("Index", "Home");
 		}
 	}

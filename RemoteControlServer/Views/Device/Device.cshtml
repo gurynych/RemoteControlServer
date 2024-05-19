@@ -104,13 +104,13 @@
 				data: GetFormData(),
 				success: function (data) {
 					console.log(data)
-					$('#amountRAMinfo').append(data.amountOfRAM + "ГБ")
+					$('#amountRAMinfo').append(data.amountOfRAM + ' ГБ')
 					var occupiedRAMpercent = Math.round(data.amountOfOccupiedRAM / data.amountOfRAM * 100)
 					var ramProgress = $('#amountOfOccupiedRAMProgress')
 					ramProgress.css('width', occupiedRAMpercent + '%')
 					ramProgress.attr('aria-valuenow', occupiedRAMpercent).prop('aria-valuenow', occupiedRAMpercent)
 					ramProgress.text(occupiedRAMpercent + '%')
-					$('#amountOfOccupiedRAMInfo').append(data.amountOfOccupiedRAM + 'ГБ')
+					$('#amountOfOccupiedRAMInfo').append(data.amountOfOccupiedRAM + ' ГБ')
 
 					var percentCharge = data.butteryChargePercent
 					var batteryProgress = $('#batteryChargeProgress')

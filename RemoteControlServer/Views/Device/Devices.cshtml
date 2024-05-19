@@ -12,13 +12,21 @@
         @for (int i = 0; i < Model.Count; i++)        
         {
             UserDevice userDevice = Model[i];
+            string faDeviceType = userDevice.DeviceType switch
+            {
+                "Desktop" or "PC" => "fa fa-desktop",
+                "Phone" => "fa fa-mobile",
+                "Tablet" => "fa fa-tablet",
+                _ => "fa fa-question"
+            };
+            
             <div class="col-md-6">
                 <div class="card mb-3 mt-3 ">
                     <div class="card-body">
                         <div class="row">
                             <div class="col-auto">
                                 <span class="badge rounded-circle text-bg-light">
-                                    <i class="fa fa-television" style="font-size: 30px; line-height: 40px;"></i>
+                                    <i class="@faDeviceType" style="font-size: 30px; line-height: 40px;"></i>
                                 </span>
                             </div>                            
 

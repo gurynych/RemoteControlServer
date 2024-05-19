@@ -25,7 +25,7 @@ namespace RemoteControlServer.Controllers
             this.dbRepository = dbRepository;
         }
 
-        [Route("")]
+        //[Route("")]
         public IActionResult Index()
         {
             //User user = await GetUserAsync();

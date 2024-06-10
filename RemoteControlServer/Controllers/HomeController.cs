@@ -7,6 +7,7 @@ using RemoteControlServer.ViewModels;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Security.Claims;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace RemoteControlServer.Controllers
 {
@@ -25,7 +26,7 @@ namespace RemoteControlServer.Controllers
             this.dbRepository = dbRepository;
         }
 
-        //[Route("")]
+        [Route("")]
         public IActionResult Index()
         {
             //User user = await GetUserAsync();
@@ -49,6 +50,26 @@ namespace RemoteControlServer.Controllers
         {            
             int id = int.Parse(User.FindFirstValue(ClaimTypes.Name));
             return dbRepository.Users.FindByIdAsync(id);
+        }
+        
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public VirtualFileResult DownloadDesktopApp()
+        {
+            string path = "~/apps/g-eye.exe";
+            _ = new FileExtensionContentTypeProvider().TryGetContentType(Path.GetFileName(path), out var contentType);
+            return File(path, contentType ?? "application/octet-stream", "g-eye.exe");
+            //return PhysicalFile(path, "application/octet-stream", "g-eye");
+        }
+        
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public VirtualFileResult DownloadAndroidApp()
+        {
+            string path = "~/apps/g-eye.apk";
+            _ = new FileExtensionContentTypeProvider().TryGetContentType(Path.GetFileName(path), out var contentType);
+            return File(path, contentType ?? "application/octet-stream", "g-eye.apk");
+            //return PhysicalFile(path, "application/octet-stream", "g-eye");
         }
     }
 }

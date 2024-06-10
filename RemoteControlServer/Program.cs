@@ -22,7 +22,7 @@ namespace RemoteControlServer
 
             // Add services to the container.            
             builder.Services.AddControllersWithViews();
-            builder.Services.AddMvcCore();            
+            builder.Services.AddMvcCore();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddDbContext<ApplicationContext>(DbContextOptions => DbContextOptions.UseNpgsql(connectionString)

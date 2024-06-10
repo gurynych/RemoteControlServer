@@ -57,7 +57,7 @@ namespace RemoteControlServer.BusinessLogic.Services
         /// <exception cref="DeviceNotConnectedException"></exception>       
         /// <exception cref="ArgumentOutOfRangeException"></exception>       
         /// <exception cref="TaskCanceledException"></exception>
-        public async Task<TResult> SendAsync<TResult>(BaseIntent intent, byte[] userToken, int deviceId, IProgress<long> progress = null, CancellationToken token = default)
+        public async Task<TResult> ReceiveResultAsync<TResult>(BaseIntent intent, byte[] userToken, int deviceId, IProgress<long> progress = null, CancellationToken token = default)
             where TResult : BaseNetworkCommandResult
         {
             ArgumentNullException.ThrowIfNull(intent);

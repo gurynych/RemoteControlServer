@@ -80,7 +80,9 @@
 							</div>
 
 							<div class="col-auto align-self-center">
-								<button class="btn btn-dark">Загрузить</button>
+								<form asp-controller="Home" asp-action="DownloadDesktopApp" method="post">
+									<input type="submit" class="btn btn-dark" value="Загрузить">
+								</form>
 							</div>
 						</div>
 					</div>
@@ -101,7 +103,9 @@
 							</div>
 
 							<div class="col-auto align-self-center">
-								<button class="btn btn-dark">Загрузить</button>
+								<form asp-controller="Home" asp-action="DownloadAndroidApp" method="post">
+									<input type="submit" class="btn btn-dark" value="Загрузить">
+								</form>
 							</div>
 						</div>
 					</div>

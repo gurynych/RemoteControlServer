@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using NetworkMessage.Cryptography.Hash;
-using NuGet.Protocol.Plugins;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
-using RemoteControlServer.ViewModels;
 using System.Security.Claims;
 
 namespace RemoteControlServer.BusinessLogic.Services

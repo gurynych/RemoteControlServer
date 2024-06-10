@@ -40,8 +40,16 @@
   </ItemGroup>
 
 	<ItemGroup>
+	  <None Remove="Resources\g-eye.apk" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Resource Include="wwwroot\apps\g-eye.apk" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Reference Include="NetworkMessage">
-	    <HintPath>..\..\NetworkMessage\NetworkMessage\bin\Debug\net8.0\NetworkMessage.dll</HintPath>
+	    <HintPath>..\..\RemoteControlCommunicator\NetworkMessage\bin\Debug\net8.0\NetworkMessage.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 </Project>

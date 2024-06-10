@@ -12,6 +12,8 @@ using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using RemoteControlServer.BusinessLogic.Services;
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Text;
+using System.Web;
 using NetworkMessage.Exceptions;
 
 // ReSharper disable All
@@ -52,14 +54,13 @@ namespace RemoteControlServer.Controllers.Api
         /// <param name="path">Путь, по которому необходимо получить файлы</param>
         /// <returns>Список вложенных файлов и директорий</returns>
         [Authorize]
-        [HttpPost("GetNestedFilesInfoInDirectoryForServer")]
+            [HttpPost("GetNestedFilesInfoInDirectoryForServer")]
         public async Task<IActionResult> GetNestedFilesInfoInDirectoryForServer([FromForm] int deviceId,
             [FromForm] string path)
         {
             CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
             try
             {
-
                 logger.LogInformation("GetNestedFilesInfoInDirectory for server {time}", DateTime.Now);
                 byte[] userToken = (await GetUserAsync()).AuthToken;
                 if (userToken == null) return BadRequest("Empty user token");
@@ -73,7 +74,7 @@ namespace RemoteControlServer.Controllers.Api
 
                 ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
                 if (connectedDevices == null) return Forbid("Device isn't connected to server");
-                
+
                 return await GetNestedFilesInfoInDirectoryFromDeviceAsync(userToken, deviceId, path, tokenSource.Token);
             }
             finally
@@ -85,23 +86,25 @@ namespace RemoteControlServer.Controllers.Api
 
         [Authorize]
         [HttpPost("DownloadFileForServer")]
-        public async Task DownloadFileForServer([FromForm] int deviceId, [FromForm] string path)
+        public async Task<IActionResult> DownloadFileForServer([FromForm] int deviceId, [FromForm] string path)
         {
             logger.LogInformation("DownloadFile for server {time}", DateTime.Now);
             byte[] userToken = (await GetUserAsync()).AuthToken;
-            //if (userToken == null) return BadRequest("Empty user token");
-            //if (deviceId <= 0) return BadRequest("Invalid device id format");
-            //if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
+            if (userToken == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
 
             Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
-            //if (device == null) return NotFound("Device not found");
-            //if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
 
             ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
-            //if (connectedDevices == null) return Forbid("Device isn't connected to server");
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
             CancellationTokenSource tokenSource = new CancellationTokenSource(500000);
-            await DownloadFileFromDeviceAsync(connectedDevice, path, tokenSource.Token);
+            await DownloadFileFromDeviceAsync(userToken, connectedDevice.Device.Id, path,
+                HttpContext.Response.BodyWriter.AsStream(), tokenSource.Token);
+            return Ok();
         }
 
         /// <summary>
@@ -110,25 +113,117 @@ namespace RemoteControlServer.Controllers.Api
         /// </summary>
         /// <param name="deviceId">Id устройства, с когорого необходимо скачать файл</param>
         /// <param name="path">Путь, по которому необходимо скачать файл</param>		
-        [Authorize]
         [HttpPost("DownloadDirectoryForServer")]
-        public async Task DownloadDirectoryForServer([FromForm] int deviceId, [FromForm] string path)
+        [Authorize]
+        public async Task<IActionResult> DownloadDirectoryForServer([FromForm] int deviceId, [FromForm] string path)
         {
             logger.LogInformation("DownloadFile for server {time}", DateTime.Now);
             byte[] userToken = (await GetUserAsync().ConfigureAwait(false)).AuthToken;
-            //if (userToken == null) return BadRequest("Empty user token");
-            //if (deviceId <= 0) return BadRequest("Invalid device id format");
-            //if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
+            if (userToken == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
 
             Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
-            //if (device == null) return NotFound("Device not found");
-            //if (!device.User.AuthToken.SequenceEqual(userToken)) return BadRequest("User token is invalid for this device");
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(userToken))
+                return BadRequest("User token is invalid for this device");
 
             ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
-            //if (connectedDevices == null) return Forbid("Device isn't connected to server");
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
-            CancellationTokenSource tokenSource = new CancellationTokenSource(500000);
-            await DownloadDirectoryFromDeviceAsync(connectedDevice, path, tokenSource.Token).ConfigureAwait(false);
+            CancellationTokenSource tokenSource = new CancellationTokenSource(1000000);
+            try
+            {
+                string tempPath = Path.GetTempFileName();
+                using (FileStream fs = System.IO.File.OpenWrite(tempPath))
+                {
+                    await DownloadDirectoryFromDeviceAsync(userToken, deviceId, path, fs, tokenSource.Token)
+                        .ConfigureAwait(false);
+                }
+
+                FileStream stream = System.IO.File.OpenRead(tempPath);
+                string fileName = path[(path.LastIndexOf('/') + 1)..] + ".rar";
+                return File(stream, "application/octet-stream", fileName);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(StatusCodes.Status408RequestTimeout);
+            }
+            catch (DeviceNotConnectedException)
+            {
+                return Forbid("Device isn't connected to server");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+            finally
+            {
+                tokenSource?.Cancel();
+                tokenSource.Dispose();
+            }
+        }
+
+        [HttpGet("DownloadDirectory")]
+        public async Task<IActionResult> DownloadDirectoryForClient(string userToken, int deviceId, string path)
+        {
+            logger.LogInformation("DownloadDirectoryForClient {time}", DateTime.Now);
+            byte[] token;
+            try
+            {
+                token = Convert.FromBase64String(userToken);
+            }
+            catch
+            {
+                return BadRequest("User token isn't in base64");
+            }
+
+            if (token == null) return BadRequest("Empty user token");
+            if (deviceId <= 0) return BadRequest("Invalid device id format");
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest("Empty path");
+
+            Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+            if (device == null) return NotFound("Device not found");
+            if (!device.User.AuthToken.SequenceEqual(token)) return BadRequest("User token is invalid for this device");
+
+            ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+            if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
+            try
+            {
+                string tempPath = Path.GetTempFileName();
+                using (FileStream fs = System.IO.File.OpenWrite(tempPath))
+                {
+                    await DownloadDirectoryFromDeviceAsync(token, deviceId, path, fs, tokenSource.Token)
+                        .ConfigureAwait(false);
+                }
+
+                FileStream stream = System.IO.File.OpenRead(tempPath);
+                string fileName = path[(path.LastIndexOf('/') + 1)..] + "rar";
+                return File(stream, "application/octet-stream", fileName);
+            }
+            catch (FormatException)
+            {
+                return BadRequest("User token isn't in base64");
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(StatusCodes.Status408RequestTimeout);
+            }
+            catch (DeviceNotConnectedException)
+            {
+                return Forbid("Device isn't connected to server");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+            finally
+            {
+                tokenSource?.Cancel();
+                tokenSource.Dispose();
+            }
         }
 
         /// <summary>
@@ -140,7 +235,7 @@ namespace RemoteControlServer.Controllers.Api
         /// <param name="path">Путь, по которому необходимо получить файлы</param>		
         [HttpGet("GetNestedFilesInfoInDirectory")]
         public async Task<IActionResult> GetNestedFilesInfoInDirectoryForClient(string userToken, int deviceId,
-            string path) //[FromForm] int deviceId, [FromForm] string path)
+            string path)
         {
             logger.LogInformation("GetNestedFilesInfoInDirectoryForCLient {time}", DateTime.Now);
             byte[] token;
@@ -167,7 +262,8 @@ namespace RemoteControlServer.Controllers.Api
 
 
             CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
-            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(token, connectedDevice.Device.Id, path, tokenSource.Token);
+            return await GetNestedFilesInfoInDirectoryFromDeviceAsync(token, connectedDevice.Device.Id, path,
+                tokenSource.Token);
         }
 
         /// <summary>
@@ -201,9 +297,34 @@ namespace RemoteControlServer.Controllers.Api
             ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
             if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
-            CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
-            await DownloadFileFromDeviceAsync(connectedDevice, path, tokenSource.Token).ConfigureAwait(false);
-            return Ok();
+            CancellationTokenSource tokenSource = new CancellationTokenSource(1000000);
+            try
+            {
+                await DownloadFileFromDeviceAsync(token, connectedDevice.Device.Id, path,
+                    HttpContext.Response.BodyWriter.AsStream(), tokenSource.Token).ConfigureAwait(false);
+                return Ok();
+            }
+            catch (FormatException)
+            {
+                return BadRequest("User token isn't in base64");
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(StatusCodes.Status408RequestTimeout);
+            }
+            catch (DeviceNotConnectedException)
+            {
+                return Forbid("Device isn't connected to server");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+            finally
+            {
+                tokenSource?.Cancel();
+                tokenSource.Dispose();
+            }
         }
 
         /// <summary>
@@ -249,24 +370,25 @@ namespace RemoteControlServer.Controllers.Api
             return Ok(result);
         }
 
-        private async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(byte[] userToken, int deviceId, string path, CancellationToken token = default)
+        private async Task<IActionResult> GetNestedFilesInfoInDirectoryFromDeviceAsync(byte[] userToken, int deviceId,
+            string path, CancellationToken token = default)
         {
             try
             {
                 NestedFilesInfoResult files =
-                    await commandsService.SendAsync<NestedFilesInfoResult>
+                    await commandsService.ReceiveResultAsync<NestedFilesInfoResult>
                         (
                             new NestedFilesInfoIntent(path), userToken, deviceId, token: token
                         )
                         .ConfigureAwait(false);
 
                 NestedDirectoriesInfoResult folders =
-                    await commandsService.SendAsync<NestedDirectoriesInfoResult>
+                    await commandsService.ReceiveResultAsync<NestedDirectoriesInfoResult>
                         (
                             new NestedDirectoriesInfoIntent(path), userToken, deviceId, token: token
                         )
                         .ConfigureAwait(false);
-
+                
                 return Ok(new
                 {
                     files.NestedFilesInfo,
@@ -285,82 +407,66 @@ namespace RemoteControlServer.Controllers.Api
             }
         }
 
-        private async Task DownloadFileFromDeviceAsync(ConnectedDevice connectedDevice, string path, CancellationToken token = default)
+        private async Task DownloadFileFromDeviceAsync(byte[] userToken, int deviceId, string path,
+            Stream streamToWrite, CancellationToken token = default)
         {
             BaseIntent intent;
-            string tempPath = Path.Combine(webHostEnvironment.WebRootPath, "temp", Guid.NewGuid().ToString());
-            try
-            {
-                string fileName = path[(path.LastIndexOf('/') + 1)..];
-                string extension = path[(path.LastIndexOf('.') + 1)..].ToLower();
 
-                intent = new DownloadFileIntent(path);
-                await connectedDevice.SendObjectAsync(intent, token: token).ConfigureAwait(false);
+            string fileName = path[(path.LastIndexOf('/') + 1)..];
+            string extension = path[(path.LastIndexOf('.') + 1)..].ToLower();
 
-                //IProgress<long> progress = new Progress<long>(i => Debug.WriteLine(i));
-                //await connectedDevice.ReceiveFileAsync(tempPath, progress, token).ConfigureAwait(false);
-                string contentType = extension switch
-                {
-                    "txt" => "text/plain",
-                    "png" => "image/png",
-                    "jpeg" or "jpg" => "image/jpeg",
-                    "mp3" => "audio/mpeg",
-                    "mp4" => "video/pm4",
-                    "mpeg" => "video/mpeg",
-                    "pdf" => "application/pdf",
-                    "doc" => "application/msword",
-                    "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    _ => "application/octet-stream"
-                };
+            intent = new FileInfoIntent(path);
+            FileInfoResult result = await commandsService
+                .ReceiveResultAsync<FileInfoResult>(intent, userToken, deviceId, token: token).ConfigureAwait(false);
 
-                HttpContext.Response.Headers.ContentType = contentType;
-                HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileName}";
-                //HttpContext.Response.Headers.ContentLength = length;
-                await connectedDevice.ReceiveStreamAsync(HttpContext.Response.BodyWriter.AsStream(), token: token)
-                    .ConfigureAwait(false);
-                logger.LogInformation("DownloadFile success {time}", DateTime.Now);
-            }
-            catch (OperationCanceledException)
+            string contentType = extension switch
             {
-                //return StatusCode(StatusCodes.Status408RequestTimeout);
-            }
-            catch (Exception ex)
-            {
-                //return StatusCode(StatusCodes.Status500InternalServerError, ex);
-            }
+                "txt" => "text/plain",
+                "png" => "image/png",
+                "jpeg" or "jpg" => "image/jpeg",
+                "mp3" => "audio/mpeg",
+                "mp4" => "video/pm4",
+                "mov" => "video/quicktime",
+                "mpeg" => "video/mpeg",
+                "pdf" => "application/pdf",
+                "doc" => "application/msword",
+                "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                _ => "application/octet-stream"
+            };
+
+            HttpContext.Response.Headers.ContentType = contentType;
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileName}";
+            HttpContext.Response.Headers.ContentLength = result.FileInfo.FileLength;
+
+            intent = new DownloadFileIntent(path);
+            await commandsService.ReceiveStream(intent, streamToWrite, userToken, deviceId, token: token)
+                .ConfigureAwait(false);
+            logger.LogInformation("DownloadFile success {time}", DateTime.Now);
         }
 
-        private async Task DownloadDirectoryFromDeviceAsync(ConnectedDevice connectedDevice, string path, CancellationToken token = default)
+        private async Task DownloadDirectoryFromDeviceAsync(byte[] userToken, int deviceId, string path,
+            Stream streamToWrite, CancellationToken token = default)
         {
             BaseIntent intent;
-            string tempPath = Path.Combine(webHostEnvironment.WebRootPath, "temp", Guid.NewGuid().ToString());
-            try
-            {
-                string fileName = path[(path.LastIndexOf('/') + 1)..];
-                string extension = path[(path.LastIndexOf('.') + 1)..].ToLower();
 
-                intent = new DownloadDirectoryIntent(path);
-                await connectedDevice.SendObjectAsync(intent, token: token).ConfigureAwait(false);
+            /*string fileName = path[(path.LastIndexOf('/') + 1)..];
 
-                IProgress<long> progress = new Progress<long>(i => Debug.WriteLine(i));
-                HttpContext.Response.ContentType = "application/octet-stream";
-                HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileName}.rar";
-                await connectedDevice.ReceiveStreamAsync(HttpContext.Response.BodyWriter.AsStream(), token: token)
-                    .ConfigureAwait(false);
-                logger.LogInformation("DownloadDirectory success {time}", DateTime.Now);
-            }
-            catch (OperationCanceledException)
-            {
-                //return StatusCode(StatusCodes.Status408RequestTimeout);
-            }
-            catch (Exception ex)
-            {
-                //return StatusCode(StatusCodes.Status500InternalServerError, ex);
-            }
+            intent = new DirectoryInfoIntent(path);
+            DirectoryInfoResult result = await commandsService
+                .SendAsync<DirectoryInfoResult>(intent, userToken, deviceId, token: token).ConfigureAwait(false);
+
+            HttpContext.Response.ContentType = "application/octet-stream";
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileName}.rar";
+            HttpContext.Response.Headers.ContentLength = result.DirectoryInfo.FileLength;*/
+
+            intent = new DownloadDirectoryIntent(path);
+            await commandsService.ReceiveStream(intent, streamToWrite, userToken, deviceId, token: token)
+                .ConfigureAwait(false);
+            logger.LogInformation("DownloadDirectory success {time}", DateTime.Now);
         }
 
         /// <summary>
-        /// Post метод API для получения технической инфомации об устройсвтве (ЦПУ, ОЗУ и т.д.)
+        /// Post метод API для получения технической информации об устройстве (ЦПУ, ОЗУ и т.д.)
         /// Закрытый. Используя для AJAX-запросов
         /// </summary>
         /// <param name="deviceId">Id устройства, у которого необходимо информацию</param>				
@@ -375,18 +481,18 @@ namespace RemoteControlServer.Controllers.Api
             if (!device.User.AuthToken.SequenceEqual(user.AuthToken))
                 return Forbid("User token is invalid for this device");
             AmountOfRAMResult amountOfRam =
-                await commandsService.SendAsync<AmountOfRAMResult>(new AmountOfRAMIntent(), user.AuthToken, deviceId);
+                await commandsService.ReceiveResultAsync<AmountOfRAMResult>(new AmountOfRAMIntent(), user.AuthToken, deviceId);
 
             AmountOfOccupiedRAMResult amountOfOccupiedRAM =
-                await commandsService.SendAsync<AmountOfOccupiedRAMResult>(new AmountOfOccupiedRAMIntent(),
+                await commandsService.ReceiveResultAsync<AmountOfOccupiedRAMResult>(new AmountOfOccupiedRAMIntent(),
                     user.AuthToken, deviceId);
 
             BatteryChargeResult batteryChargeResult =
-                await commandsService.SendAsync<BatteryChargeResult>(new BatteryChargePersentageIntent(),
+                await commandsService.ReceiveResultAsync<BatteryChargeResult>(new BatteryChargePersentageIntent(),
                     user.AuthToken, deviceId);
 
             PercentageOfCPUUsageResult percentageOfCPUUsageResult =
-                await commandsService.SendAsync<PercentageOfCPUUsageResult>(new PercentageOfCPUUsageIntent(),
+                await commandsService.ReceiveResultAsync<PercentageOfCPUUsageResult>(new PercentageOfCPUUsageIntent(),
                     user.AuthToken, deviceId);
 
             return Ok(new
@@ -419,18 +525,19 @@ namespace RemoteControlServer.Controllers.Api
 
                 CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
                 AmountOfRAMResult amountOfRam =
-                    await commandsService.SendAsync<AmountOfRAMResult>(new AmountOfRAMIntent(), token, deviceId, token: tokenSource.Token);
+                    await commandsService.ReceiveResultAsync<AmountOfRAMResult>(new AmountOfRAMIntent(), token, deviceId,
+                        token: tokenSource.Token);
 
                 AmountOfOccupiedRAMResult amountOfOccupiedRAM =
-                    await commandsService.SendAsync<AmountOfOccupiedRAMResult>(new AmountOfOccupiedRAMIntent(),
+                    await commandsService.ReceiveResultAsync<AmountOfOccupiedRAMResult>(new AmountOfOccupiedRAMIntent(),
                         token, deviceId, token: tokenSource.Token);
 
                 BatteryChargeResult batteryChargeResult =
-                    await commandsService.SendAsync<BatteryChargeResult>(new BatteryChargePersentageIntent(),
+                    await commandsService.ReceiveResultAsync<BatteryChargeResult>(new BatteryChargePersentageIntent(),
                         token, deviceId, token: tokenSource.Token);
 
                 PercentageOfCPUUsageResult percentageOfCPUUsageResult =
-                    await commandsService.SendAsync<PercentageOfCPUUsageResult>(new PercentageOfCPUUsageIntent(),
+                    await commandsService.ReceiveResultAsync<PercentageOfCPUUsageResult>(new PercentageOfCPUUsageIntent(),
                         token, deviceId, token: tokenSource.Token);
 
                 return Ok(new
@@ -458,7 +565,7 @@ namespace RemoteControlServer.Controllers.Api
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-        
+
         /// <summary>
         /// Post метод API для получения вложенных файлов в директорию
         /// Закрытый. Используя для AJAX-запросов
@@ -474,7 +581,8 @@ namespace RemoteControlServer.Controllers.Api
                 User user = await GetUserAsync().ConfigureAwait(false);
                 Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
                 if (device == null) return; //NotFound("Device not found");
-                if (!device.User.AuthToken.SequenceEqual(user.AuthToken)) return; //Forbid("User token is invalid for this device");			
+                if (!device.User.AuthToken.SequenceEqual(user.AuthToken))
+                    return; //Forbid("User token is invalid for this device");			
                 HttpContext.Response.ContentType = "image/jpeg";
                 HttpContext.Response.Headers.ContentDisposition = $"attachment; filename=Screenshot.jpeg";
                 await commandsService.ReceiveStream(new ScreenshotIntent(),
@@ -507,8 +615,9 @@ namespace RemoteControlServer.Controllers.Api
                 if (connectedDevices == null) return Forbid("Device isn't connected to server");
 
                 CancellationTokenSource tokenSource = new CancellationTokenSource(50000);
-                using MemoryStream ms = new MemoryStream(); 
-                await commandsService.ReceiveStream(new ScreenshotIntent(), ms, token, deviceId, token: tokenSource.Token);
+                using MemoryStream ms = new MemoryStream();
+                await commandsService.ReceiveStream(new ScreenshotIntent(), ms, token, deviceId,
+                    token: tokenSource.Token);
                 return Ok(ms.ToArray());
             }
             catch (FormatException)
@@ -526,6 +635,108 @@ namespace RemoteControlServer.Controllers.Api
             catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+        [HttpPost("GetRunninProgramsForServer")]
+        [Authorize]
+        public async Task<IActionResult> GetRunninProgramsForServer([FromForm] int deviceId)
+        {
+            CancellationTokenSource tokenSource = null;
+            try
+            {
+                logger.LogInformation("GetRunninProgramsForServer {time}", DateTime.Now);
+
+                User user = await GetUserAsync().ConfigureAwait(false);
+                Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+                if (device == null) NotFound("Device not found");
+                if (!device.User.AuthToken.SequenceEqual(user.AuthToken))
+                    return Forbid("User token is invalid for this device");
+
+                RunningProgramsResult result =
+                    await commandsService.ReceiveResultAsync<RunningProgramsResult>(new RunningProgramsIntent(), user.AuthToken,
+                        deviceId, token: tokenSource.Token);
+                if (result.ErrorMessage != null || result.Exception != null)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError,
+                        result?.Exception.Message ?? result.ErrorMessage);
+                }
+
+                logger.LogInformation("GetRunninProgramsForServer success");
+                return Ok(result.RunningPrograms);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(StatusCodes.Status408RequestTimeout);
+            }
+            catch (DeviceNotConnectedException)
+            {
+                return Forbid("Device isn't connected to server");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+            finally
+            {
+                tokenSource?.Cancel();
+                tokenSource.Dispose();
+            }
+        }
+
+        [HttpGet("GetRunninPrograms")]
+        public async Task<IActionResult> GetRunninProgramsForClient(string userToken, int deviceId)
+        {
+            CancellationTokenSource tokenSource = null;
+            try
+            {
+                logger.LogInformation("GetRunninProgramsForClient {time}", DateTime.Now);
+                byte[] token = Convert.FromBase64String(userToken);
+
+                if (token == null) return BadRequest("Empty user token");
+                if (deviceId <= 0) return BadRequest("Invalid device id format");
+
+                Device device = await dbRepository.Devices.FindByIdAsync(deviceId);
+                if (device == null) return NotFound("Device not found");
+                if (!device.User.AuthToken.SequenceEqual(token))
+                    return BadRequest("User token is invalid for this device");
+
+                ConnectedDevice connectedDevice = connectedDevices.GetConnectedDeviceByDeviceId(deviceId);
+                if (connectedDevices == null) return Forbid("Device isn't connected to server");
+
+                tokenSource = new CancellationTokenSource(50000);
+                RunningProgramsResult result =
+                    await commandsService.ReceiveResultAsync<RunningProgramsResult>(new RunningProgramsIntent(), token, deviceId,
+                        token: tokenSource.Token);
+                if (result.ErrorMessage != null || result.Exception != null)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError,
+                        result.Exception?.Message ?? result.ErrorMessage);
+                }
+
+                logger.LogInformation("GetRunninProgramsForClient success");
+                return Ok(result.RunningPrograms);
+            }
+            catch (FormatException)
+            {
+                return BadRequest("User token isn't in base64");
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(StatusCodes.Status408RequestTimeout);
+            }
+            catch (DeviceNotConnectedException)
+            {
+                return Forbid("Device isn't connected to server");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+            finally
+            {
+                tokenSource?.Cancel();
+                tokenSource.Dispose();
             }
         }
 

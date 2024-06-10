@@ -45,7 +45,7 @@ namespace RemoteControlServer.BusinessLogic.Communicators
             SetExternalPublicKey(publicKey);
             BaseIntent guidIntent = new GuidIntent();            
             await SendObjectAsync(guidIntent, progress, token).ConfigureAwait(false);
-            DeviceGuidResult guidResult = await ReceiveAsync<DeviceGuidResult>(progress, token).ConfigureAwait(false);
+            GuidResult guidResult = await ReceiveAsync<GuidResult>(progress, token).ConfigureAwait(false);
             if (guidResult == null) throw new NullReferenceException(nameof(guidResult));
             Device = await deviceRepository.FindByGuidAsync(guidResult.Guid, token);
             IsConnected = true;

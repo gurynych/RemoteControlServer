@@ -6,7 +6,7 @@ using NetworkMessage.Cryptography.SymmetricCryptography;
 using NuGet.Common;
 using NuGet.ContentModel;
 using RemoteControlServer.BusinessLogic.Database.Models;
-using RemoteControlServer.BusinessLogic.Repository.DbRepository;
+using RemoteControlServer.BusinessLogic.Repository.DbRepository;    
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -53,14 +53,14 @@ namespace RemoteControlServer.Controllers.Api
 
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(deviceGuid)
                 || password.Length < MinPasswordLength || string.IsNullOrWhiteSpace(deviceName)
-                || !Regex.IsMatch(email, EmailPattern) || !Regex.IsMatch(password, LoginAndPasswordPattern))
+                || !Regex.IsMatch(email, EmailPattern))
             {
                 return BadRequest();
             }
 
             User user = await dbRepository.Users.FindByEmailAsync(email);
 
-            if (user == null) return NotFound("Пользователь не найден");  //NotFound(user);
+            if (user == null) return NotFound("Пользователя с такими данными не существует");  //NotFound(user);
 
             string passwordHash = hashCreater.Hash(password, user.Salt);
 
@@ -109,7 +109,7 @@ namespace RemoteControlServer.Controllers.Api
                 || !Regex.IsMatch(login, LoginAndPasswordPattern))
             {
                 logger.LogError("Error registration: {email}", email);
-                return BadRequest();
+                return BadRequest("Заполнены не все данные");
             }           
 
             User user = await dbRepository.Users
@@ -117,7 +117,7 @@ namespace RemoteControlServer.Controllers.Api
             if (user != null)
             {
                 logger.LogError("Error registration: {email}", email);
-                return Conflict("Email already registered");
+                return Conflict("Такой Email уже зарегестрирован");
             }
 
             user = new User(login, email, password);
@@ -136,6 +136,7 @@ namespace RemoteControlServer.Controllers.Api
                 await dbRepository.Devices.AddAsync(device);
             }
 
+            device.User = user;
             await dbRepository.Users.AddDeviceAsync(user.Id, device);
             await dbRepository.Users.AddAsync(user);
             var publicKey = keyStore.GetPublicKey();
@@ -183,7 +184,7 @@ namespace RemoteControlServer.Controllers.Api
             logger.LogInformation("Try get user with token");
             if (!IsCorrectToken(token))
             {
-                return BadRequest();
+                return BadRequest("Токен больше недействителен");
             }
 
             User user = await dbRepository.Users.FindByTokenAsync(token);
@@ -207,7 +208,7 @@ namespace RemoteControlServer.Controllers.Api
                     return false;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return false;
             }

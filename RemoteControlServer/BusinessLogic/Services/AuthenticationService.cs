@@ -3,6 +3,8 @@ using NetworkMessage.Cryptography.Hash;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using System.Security.Claims;
+using System.Text;
+using NetworkMessage.Cryptography.KeyStore;
 
 namespace RemoteControlServer.BusinessLogic.Services
 {
@@ -10,12 +12,14 @@ namespace RemoteControlServer.BusinessLogic.Services
 	{
 		private readonly IDbRepository dbRepository;
 		private readonly IHashCreater hashCreater;
+		private readonly AsymmetricKeyStoreBase keyStore;
 
-		public AuthenticationService(IDbRepository dbRepository, IHashCreater hashCreater)
+		public AuthenticationService(IDbRepository dbRepository, IHashCreater hashCreater, AsymmetricKeyStoreBase keyStore)
         {
 			this.dbRepository = dbRepository;
 			this.hashCreater = hashCreater;
-		}
+			this.keyStore = keyStore;
+        }
 
         public async Task<User> AuthorizeAsync(string email, string password)
 		{
@@ -36,6 +40,11 @@ namespace RemoteControlServer.BusinessLogic.Services
 			ArgumentException.ThrowIfNullOrWhiteSpace(password, nameof(password));
 
 			User user = new User(login, email, password);
+			byte[] publicKey = keyStore.GetPublicKey();
+			byte[] encodedEmail = Encoding.UTF8.GetBytes(email);
+			user.AuthToken = new byte[publicKey.Length + encodedEmail.Length];
+			Buffer.BlockCopy(publicKey, 0, user.AuthToken, 0, publicKey.Length);
+			Buffer.BlockCopy(encodedEmail, 0, user.AuthToken, publicKey.Length, encodedEmail.Length);
 			if (!await dbRepository.Users.AddAsync(user).ConfigureAwait(false))
 			{
 				return null;

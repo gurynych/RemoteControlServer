@@ -4,6 +4,9 @@ using NetworkMessage.Cryptography.Hash;
 using RemoteControlServer.BusinessLogic.Database;
 using RemoteControlServer.BusinessLogic.Database.Models;
 using System.Linq.Expressions;
+using System.Text;
+using NetworkMessage.Cryptography.AsymmetricCryptography;
+using NetworkMessage.Cryptography.KeyStore;
 
 namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
 {
@@ -12,12 +15,16 @@ namespace RemoteControlServer.BusinessLogic.Repository.DbRepository
         private readonly ILogger<UserDbRepository> logger;
         private readonly IHashCreater hashCreator;
         private readonly ApplicationContext context;
+        private readonly IAsymmetricCryptographer asymmetricCryptographer;
+        private readonly AsymmetricKeyStoreBase keyStore;
 
-        public UserDbRepository(ILogger<UserDbRepository> logger, IHashCreater hashCreator, ApplicationContext context)
+        public UserDbRepository(ILogger<UserDbRepository> logger, IHashCreater hashCreator, ApplicationContext context, IAsymmetricCryptographer asymmetricCryptographer, AsymmetricKeyStoreBase keyStore)
         {
-            this.logger = logger;
-            this.hashCreator = hashCreator;
-            this.context = context;            
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            this.hashCreator = hashCreator ?? throw new ArgumentNullException(nameof(hashCreator));
+            this.context = context ?? throw new ArgumentNullException(nameof(context));
+            this.asymmetricCryptographer = asymmetricCryptographer ?? throw new ArgumentNullException(nameof(asymmetricCryptographer));
+            this.keyStore = keyStore ?? throw new ArgumentNullException(nameof(keyStore));
         }
 
         public async Task<bool> AddAsync(User item)

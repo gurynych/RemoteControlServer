@@ -15,7 +15,7 @@
 								<div asp-validation-summary="ModelOnly" class="text-danger"></div>
 								<form asp-controller="Account" asp-action="Registration" method="post">
 									<div class="mb-3">
-										<label for="Login" class="form-label">Почта</label>
+										<label for="Login" class="form-label">Логин</label>
 										<input type="text" name="login" id="login" class="form-control" asp-for="Login">
 										<span asp-validation-for="Login" class="text-danger"></span>
 									</div>
@@ -30,12 +30,6 @@
 										<label for="password" class="form-label">Пароль</label>
 										<input type="text" name="password" id="password" class="form-control" asp-for="Password">
 										<span asp-validation-for="Password" class="text-danger"></span>
-									</div>
-
-									<div class="mb-3">
-										<label for="confirmPassword" class="form-label">Подтвердите пароль</label>
-										<input type="text" name="confirmPassword" id="confirmPassword" class="form-control" asp-for="ConfirmPassword">
-										<span asp-validation-for="ConfirmPassword" class="text-danger"></span>
 									</div>
 
 									<div class="d-flex justify-content-center">

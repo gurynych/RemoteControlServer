@@ -6,7 +6,7 @@ namespace RemoteControlServer.ViewModels
     public class AuthorizationViewModel
     {
 
-        [EmailAddress(ErrorMessage = "Неверный email адрес")]
+        [EmailAddress(ErrorMessage = "Неверный формат email")]
         [Required(ErrorMessage = "Поле \"почта\" не может быть пустым")]        
         [Display(Name = "Email")]
         public string Email { get; set; }

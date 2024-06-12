@@ -28,9 +28,9 @@ namespace RemoteControlServer.Controllers
 
         [HttpGet("Devices")]
         public async Task<IActionResult> Devices()
-        {
-			User user = await GetUserAsync().ConfigureAwait(false);
-             return View(new List<UserDevice>(await devicesService.GetUserDevicesAsync(user.Id).ConfigureAwait(false)));
+        { 
+            User user = await GetUserAsync().ConfigureAwait(false);
+            return View(new List<UserDevice>(await devicesService.GetUserDevicesAsync(user.Id).ConfigureAwait(false)));
 		}
 
         [HttpGet("[controller]/{id}")]

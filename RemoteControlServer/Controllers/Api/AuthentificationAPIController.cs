@@ -55,7 +55,7 @@ namespace RemoteControlServer.Controllers.Api
                 || password.Length < MinPasswordLength || string.IsNullOrWhiteSpace(deviceName)
                 || !Regex.IsMatch(email, EmailPattern))
             {
-                return BadRequest();
+                return NotFound("Пользователя с такими данными не существует");
             }
 
             User user = await dbRepository.Users.FindByEmailAsync(email);
@@ -80,17 +80,20 @@ namespace RemoteControlServer.Controllers.Api
                 await dbRepository.Users.AddDeviceAsync(user.Id, device);
             }
 
-            byte[] publicKey = user.AuthToken;
-            if (!IsCorrectToken(user.AuthToken))
+            byte[] encodedEmail = Encoding.UTF8.GetBytes(email);
+            byte[] publicKey = user.AuthToken[..^encodedEmail.Length];
+            if (!IsCorrectToken(publicKey))
             {
                 publicKey = keyStore.GetPublicKey();
-                user.AuthToken = publicKey;
+                user.AuthToken = new byte[publicKey.Length + encodedEmail.Length];
+                Buffer.BlockCopy(publicKey, 0, user.AuthToken, 0, publicKey.Length);
+                Buffer.BlockCopy(encodedEmail, 0, user.AuthToken, publicKey.Length, encodedEmail.Length);
             }            
 
             await dbRepository.Users.SaveChangesAsync().ConfigureAwait(false);
             await dbRepository.Devices.SaveChangesAsync().ConfigureAwait(false);
             logger.LogInformation("Success authorize {email}", email);            
-            return Ok(publicKey);
+            return Ok(user.AuthToken);
         }
         
         [HttpPost("RegisterFromDevice")]
@@ -139,12 +142,16 @@ namespace RemoteControlServer.Controllers.Api
             device.User = user;
             await dbRepository.Users.AddDeviceAsync(user.Id, device);
             await dbRepository.Users.AddAsync(user);
-            var publicKey = keyStore.GetPublicKey();
-            user.AuthToken = publicKey;
+            
+            byte[] publicKey = keyStore.GetPublicKey();
+            byte[] encodedEmail = Encoding.UTF8.GetBytes(email);
+            user.AuthToken = new byte[publicKey.Length + encodedEmail.Length];
+            Buffer.BlockCopy(publicKey, 0, user.AuthToken, 0, publicKey.Length);
+            Buffer.BlockCopy(encodedEmail, 0, user.AuthToken, publicKey.Length, encodedEmail.Length);
 
             await dbRepository.Users.SaveChangesAsync();
             logger.LogInformation("Success registration: {email}", email);
-            return Ok(publicKey);
+            return Ok(user.AuthToken);
         }
 
         [HttpPost("AuthorizeWithToken")]
@@ -166,15 +173,14 @@ namespace RemoteControlServer.Controllers.Api
 
 			if (!IsCorrectToken(token))
             {
-                return BadRequest();
+                return BadRequest("Токен аутентификации недействителен или устарел");
             }
 
             User user = await dbRepository.Users.FindByTokenAsync(token);
             if (user == null) return NotFound();
 
             logger.LogInformation("Success authorize {email} with token", user.Email);
-			byte[] publicKey = keyStore.GetPublicKey();
-			return Ok(publicKey);
+			return Ok(user.AuthToken);
         }
 
         [HttpGet("GetUserByToken")]
@@ -194,8 +200,11 @@ namespace RemoteControlServer.Controllers.Api
 
         private bool IsCorrectToken(byte[] token)
         {
-            if (token == default || token.Length != tokenSize) return false;
-
+            if (token == default) return false;
+            
+            if (token.Length < tokenSize) return false;
+            token = token[..tokenSize];
+            
             try
             {
                 string expected = @"Test$!";

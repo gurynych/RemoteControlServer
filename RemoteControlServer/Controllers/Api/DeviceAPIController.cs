@@ -11,6 +11,7 @@ using RemoteControlServer.BusinessLogic.Database.Models;
 using RemoteControlServer.BusinessLogic.Repository.DbRepository;
 using RemoteControlServer.BusinessLogic.Services;
 using System.Diagnostics;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Web;
@@ -435,7 +436,7 @@ namespace RemoteControlServer.Controllers.Api
             };
 
             HttpContext.Response.Headers.ContentType = contentType;
-            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileName}";
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={WebUtility.UrlEncode(fileName)}";
             HttpContext.Response.Headers.ContentLength = result.FileInfo.FileLength;
 
             intent = new DownloadFileIntent(path);
